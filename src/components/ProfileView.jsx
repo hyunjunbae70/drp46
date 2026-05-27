@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 export default function ProfileView({ session, onSignOut }) {
@@ -6,29 +6,37 @@ export default function ProfileView({ session, onSignOut }) {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [profile, setProfile] = useState({ fullName: "", username: "" });
 
-  const getProfile = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("full_name, username")
-      .eq("id", session.user.id)
-      .maybeSingle();
-
-    if (error) {
-      setMessage({ text: error.message, type: "error" });
-      return;
-    }
-
-    if (data) {
-      setProfile({
-        fullName: data.full_name || "",
-        username: data.username || "",
-      });
-    }
-  }, [session.user.id]);
-
   useEffect(() => {
-    getProfile();
-  }, [getProfile]);
+    let isMounted = true;
+
+    async function fetchProfile() {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (error) {
+        setMessage({ text: error.message, type: "error" });
+        return;
+      }
+
+      if (data) {
+        setProfile({
+          fullName: data.full_name || "",
+          username: data.username || "",
+        });
+      }
+    }
+
+    fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session.user.id]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
