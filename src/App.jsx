@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { supabase } from "./lib/supabase"
 
 export default function App() {
@@ -14,7 +14,7 @@ export default function App() {
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error(error)
+      alert(error.message)
       return
     }
 
@@ -27,7 +27,7 @@ export default function App() {
 
     const { error } = await supabase.from("users").insert({
       name,
-      email
+      email,
     })
 
     if (error) {
@@ -41,10 +41,6 @@ export default function App() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
   return (
     <main style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
       <h1>Users</h1>
@@ -52,14 +48,14 @@ export default function App() {
       <form onSubmit={addUser}>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(event) => setName(event.target.value)}
           placeholder="Name"
           required
         />
 
         <input
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(event) => setEmail(event.target.value)}
           placeholder="Email"
           type="email"
           required
@@ -70,10 +66,14 @@ export default function App() {
         </button>
       </form>
 
+      <button type="button" onClick={fetchUsers}>
+        Load users
+      </button>
+
       <h2>Saved users</h2>
 
       {users.length === 0 ? (
-        <p>No users yet.</p>
+        <p>No users loaded yet.</p>
       ) : (
         <ul>
           {users.map((user) => (
