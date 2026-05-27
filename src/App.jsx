@@ -43,7 +43,7 @@ export default function App() {
 
   return (
     <main style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
-      <h1>Users</h1>
+      <h1>Our app's Users</h1>
 
       <form onSubmit={addUser}>
         <input
