@@ -15,7 +15,7 @@ export default function App() {
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       setMessage(error.message)
