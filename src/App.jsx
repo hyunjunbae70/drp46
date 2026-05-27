@@ -54,7 +54,7 @@ export default function App() {
       }
     }
 
-    setMessage("Account created. Check your email if confirmation is enabled.")
+    setMessage("Account created.")
   }
 
   async function signIn(event) {
