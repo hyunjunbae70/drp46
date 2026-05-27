@@ -68,29 +68,50 @@ export default function ProfileView({ session, onSignOut }) {
     <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Your Profile</h1>
-        <p className="mt-1 text-sm text-gray-500">Logged in as {session.user.email}</p>
+        <p className="mt-1 text-sm text-gray-500">Manage your account details</p>
       </div>
 
+      {/* Account Info Readout Cards */}
+      <div className="rounded-xl bg-gray-50 p-4 space-y-3 border border-gray-100 text-sm">
+        <div className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+          <span className="font-medium text-gray-500">Email Address</span>
+          <span className="text-gray-900 font-mono text-xs">{session.user.email}</span>
+        </div>
+        <div className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+          <span className="font-medium text-gray-500">Full Name</span>
+          <span className="text-gray-900">{profile.fullName || "—"}</span>
+        </div>
+        <div className="flex justify-between items-center py-1 last:border-0">
+          <span className="font-medium text-gray-500">Username</span>
+          <span className="text-gray-900">@{profile.username || "—"}</span>
+        </div>
+      </div>
+
+      <hr className="border-gray-100" />
+
+      {/* Edit Form */}
       <form onSubmit={handleUpdate} className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Edit Details</h2>
+        
         <div>
-          <label className="block text-sm font-medium text-gray-700">Full Name</label>
+          <label className="block text-sm font-medium text-gray-700">Update Full Name</label>
           <input
             type="text"
             value={profile.fullName}
             onChange={(e) => setProfile((prev) => ({ ...prev, fullName: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Full Name"
+            placeholder="Edit Full Name"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Username</label>
+          <label className="block text-sm font-medium text-gray-700">Update Username</label>
           <input
             type="text"
             value={profile.username}
             onChange={(e) => setProfile((prev) => ({ ...prev, username: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Username"
+            placeholder="Edit Username"
           />
         </div>
 
