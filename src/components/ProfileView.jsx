@@ -10,7 +10,7 @@ const DIETARY_OPTIONS = [
   { id: "kosher", label: "Kosher", emoji: "✡️" },
 ];
 
-export default function ProfileView({ session, onSignOut }) {
+export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
@@ -124,6 +124,11 @@ export default function ProfileView({ session, onSignOut }) {
         username,
         budget,
       }));
+
+      // 🔥 CRITICAL FIX: Inform App.jsx that the database values have updated
+      if (typeof onProfileUpdate === "function") {
+        await onProfileUpdate();
+      }
 
       setMessage({ text: "Profile updated successfully!", type: "success" });
     }
