@@ -108,16 +108,20 @@ export default function App() {
 
       {/* View Injection Viewport */}
       <main className="flex-1 w-full max-w-6xl mx-auto p-6">
-        {currentView === "profile" ? (
-          <ProfileView 
-            session={session} 
-            onSignOut={() => setSession(null)} 
-            onProfileUpdate={fetchUserProfile} // Call this when user updates profile form to refresh local state
-          />
-        ) : (
-          <RecipeView profile={profileData} />
-        )}
-      </main>
+  {currentView === "profile" ? (
+    <div className="flex w-full justify-center items-start pt-8"> 
+      <div className="w-full max-w-xl"> {/* Limits the width so it doesn't stretch */}
+        <ProfileView 
+          session={session} 
+          onSignOut={() => setSession(null)} 
+          onProfileUpdate={fetchUserProfile} 
+        />
+      </div>
+    </div>
+  ) : (
+    <RecipeView profile={profileData} />
+  )}
+</main>
     </div>
   );
 }
