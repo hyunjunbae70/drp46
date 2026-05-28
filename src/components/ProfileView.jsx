@@ -19,6 +19,7 @@ export default function ProfileView({ session, onSignOut }) {
     fullName: "",
     username: "",
     dietaryRequirements: [],
+    budget: 0,
   });
 
   // Tracks active typing inputs—starts completely empty
@@ -26,6 +27,7 @@ export default function ProfileView({ session, onSignOut }) {
     fullName: "",
     username: "",
     dietaryRequirements: [],
+    budget: 0,
   });
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ProfileView({ session, onSignOut }) {
     async function fetchProfile() {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, username, dietary_requirements")
+        .select("full_name, username, dietary_requirements, budget")
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -50,11 +52,13 @@ export default function ProfileView({ session, onSignOut }) {
           fullName: data.full_name || "",
           username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
+          budget: data.budget ?? 0,
         });
         // Pre-populate dietary requirements in the form so toggles reflect saved state
         setFormData((prev) => ({
           ...prev,
           dietaryRequirements: data.dietary_requirements || [],
+          budget: data.budget ?? 0,
         }));
       }
     }
@@ -87,6 +91,7 @@ export default function ProfileView({ session, onSignOut }) {
         full_name: formData.fullName,
         username: formData.username,
         dietary_requirements: formData.dietaryRequirements,
+        budget: formData.budget,
       })
       .eq("id", session.user.id);
 
@@ -97,6 +102,7 @@ export default function ProfileView({ session, onSignOut }) {
         fullName: formData.fullName,
         username: formData.username,
         dietaryRequirements: formData.dietaryRequirements,
+        budget: formData.budget,
       });
       // Clear text inputs but keep dietary toggles reflecting saved state
       setFormData((prev) => ({ ...prev, fullName: "", username: "" }));
@@ -135,6 +141,12 @@ export default function ProfileView({ session, onSignOut }) {
           <span className="font-medium text-gray-500">Username</span>
           <span className="col-span-2 text-gray-900 truncate">
             {profile.username ? `@${profile.username}` : "—"}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+          <span className="font-medium text-gray-500">Budget</span>
+          <span className="col-span-2 text-gray-900">
+            £{profile.budget}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-4 py-2">
@@ -192,6 +204,20 @@ export default function ProfileView({ session, onSignOut }) {
             }
             className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
             placeholder="Type new username..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Budget</label>
+
+          <input
+            type="number"
+            value={formData.budget}
+            onChange={(e) =>
+              setFormData((prev) => ({...prev, budget: e.target.value }))
+            }
+            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+            placeholder="Enter budget..."
           />
         </div>
 
