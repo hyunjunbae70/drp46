@@ -2,19 +2,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const DIETARY_OPTIONS = [
-  { id: "vegan",        label: "Vegan",        emoji: "🌱" },
-  { id: "vegetarian",   label: "Vegetarian",   emoji: "🥦" },
-  { id: "gluten-free",  label: "Gluten-Free",  emoji: "🌾" },
-  { id: "dairy-free",   label: "Dairy-Free",   emoji: "🥛" },
-  { id: "halal",        label: "Halal",        emoji: "☪️"  },
-  { id: "kosher",       label: "Kosher",       emoji: "✡️"  },
+  { id: "vegan", label: "Vegan", emoji: "🌱" },
+  { id: "vegetarian", label: "Vegetarian", emoji: "🥦" },
+  { id: "gluten-free", label: "Gluten-Free", emoji: "🌾" },
+  { id: "dairy-free", label: "Dairy-Free", emoji: "🥛" },
+  { id: "halal", label: "Halal", emoji: "☪️" },
+  { id: "kosher", label: "Kosher", emoji: "✡️" },
 ];
 
 export default function ProfileView({ session, onSignOut }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
-  // Tracks saved database values for the display section
   const [profile, setProfile] = useState({
     fullName: "",
     username: "",
@@ -22,7 +21,6 @@ export default function ProfileView({ session, onSignOut }) {
     budget: 0,
   });
 
-  // Tracks active typing inputs—starts completely empty
   const [formData, setFormData] = useState({
     fullName: "",
     username: "",
@@ -54,12 +52,13 @@ export default function ProfileView({ session, onSignOut }) {
           dietaryRequirements: data.dietary_requirements || [],
           budget: data.budget ?? 0,
         });
-        // Pre-populate dietary requirements in the form so toggles reflect saved state
-        setFormData((prev) => ({
-          ...prev,
+
+        setFormData({
+          fullName: data.full_name || "",
+          username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
           budget: data.budget ?? 0,
-        }));
+        });
       }
     }
 
@@ -76,22 +75,36 @@ export default function ProfileView({ session, onSignOut }) {
       const updated = current.includes(id)
         ? current.filter((item) => item !== id)
         : [...current, id];
+
       return { ...prev, dietaryRequirements: updated };
     });
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+
+    const fullName = formData.fullName.trim();
+    const username = formData.username.trim();
+    const budget = Math.max(0, Number(formData.budget) || 0);
+
+    if (!fullName || !username) {
+      setMessage({
+        text: "Full name and username cannot be empty.",
+        type: "error",
+      });
+      return;
+    }
+
     setLoading(true);
     setMessage({ text: "", type: "" });
 
     const { error } = await supabase
       .from("profiles")
       .update({
-        full_name: formData.fullName,
-        username: formData.username,
+        full_name: fullName,
+        username,
         dietary_requirements: formData.dietaryRequirements,
-        budget: formData.budget,
+        budget,
       })
       .eq("id", session.user.id);
 
@@ -99,15 +112,22 @@ export default function ProfileView({ session, onSignOut }) {
       setMessage({ text: error.message, type: "error" });
     } else {
       setProfile({
-        fullName: formData.fullName,
-        username: formData.username,
+        fullName,
+        username,
         dietaryRequirements: formData.dietaryRequirements,
-        budget: formData.budget,
+        budget,
       });
-      // Clear text inputs but keep dietary toggles reflecting saved state
-      setFormData((prev) => ({ ...prev, fullName: "", username: "" }));
+
+      setFormData((prev) => ({
+        ...prev,
+        fullName,
+        username,
+        budget,
+      }));
+
       setMessage({ text: "Profile updated successfully!", type: "success" });
     }
+
     setLoading(false);
   };
 
@@ -119,11 +139,14 @@ export default function ProfileView({ session, onSignOut }) {
   return (
     <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Your Profile</h1>
-        <p className="mt-1 text-sm text-gray-500">Manage your account details</p>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          Your Profile
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Manage your account details
+        </p>
       </div>
 
-      {/* Account Info Readout Cards */}
       <div className="rounded-xl bg-gray-50 p-4 space-y-2 border border-gray-100 text-sm">
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Email</span>
@@ -131,24 +154,26 @@ export default function ProfileView({ session, onSignOut }) {
             {session.user.email}
           </span>
         </div>
+
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Full Name</span>
           <span className="col-span-2 text-gray-900 truncate">
             {profile.fullName || "—"}
           </span>
         </div>
+
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Username</span>
           <span className="col-span-2 text-gray-900 truncate">
             {profile.username ? `@${profile.username}` : "—"}
           </span>
         </div>
+
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Budget</span>
-          <span className="col-span-2 text-gray-900">
-            £{profile.budget}
-          </span>
+          <span className="col-span-2 text-gray-900">£{profile.budget}</span>
         </div>
+
         <div className="grid grid-cols-3 gap-4 py-2">
           <span className="font-medium text-gray-500">Dietary</span>
           <span className="col-span-2 text-gray-900">
@@ -156,6 +181,7 @@ export default function ProfileView({ session, onSignOut }) {
               <span className="flex flex-wrap gap-1">
                 {profile.dietaryRequirements.map((id) => {
                   const opt = DIETARY_OPTIONS.find((o) => o.id === id);
+
                   return opt ? (
                     <span
                       key={id}
@@ -175,19 +201,23 @@ export default function ProfileView({ session, onSignOut }) {
 
       <hr className="border-gray-100" />
 
-      {/* Edit Form */}
       <form onSubmit={handleUpdate} className="space-y-5">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
           Edit Details
         </h2>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Update Full Name</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Update Full Name
+          </label>
           <input
             type="text"
             value={formData.fullName}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, fullName: e.target.value }))
+              setFormData((prev) => ({
+                ...prev,
+                fullName: e.target.value,
+              }))
             }
             className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
             placeholder="Type new full name..."
@@ -195,12 +225,17 @@ export default function ProfileView({ session, onSignOut }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Update Username</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Update Username
+          </label>
           <input
             type="text"
             value={formData.username}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, username: e.target.value }))
+              setFormData((prev) => ({
+                ...prev,
+                username: e.target.value,
+              }))
             }
             className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
             placeholder="Type new username..."
@@ -208,27 +243,35 @@ export default function ProfileView({ session, onSignOut }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Budget</label>
-
+          <label className="block text-sm font-medium text-gray-700">
+            Budget
+          </label>
           <input
             type="number"
+            min="0"
             value={formData.budget}
             onChange={(e) =>
-              setFormData((prev) => ({...prev, budget: e.target.value }))
+              setFormData((prev) => ({
+                ...prev,
+                budget: Math.max(0, Number(e.target.value) || 0),
+              }))
             }
             className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
             placeholder="Enter budget..."
           />
         </div>
 
-        {/* Dietary Requirements */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Dietary Requirements
           </label>
+
           <div className="grid grid-cols-2 gap-2">
             {DIETARY_OPTIONS.map((option) => {
-              const isSelected = formData.dietaryRequirements.includes(option.id);
+              const isSelected = formData.dietaryRequirements.includes(
+                option.id
+              );
+
               return (
                 <button
                   key={option.id}
@@ -242,6 +285,7 @@ export default function ProfileView({ session, onSignOut }) {
                 >
                   <span className="text-base leading-none">{option.emoji}</span>
                   <span>{option.label}</span>
+
                   {isSelected && (
                     <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
                       <svg
