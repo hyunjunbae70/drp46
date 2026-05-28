@@ -1,53 +1,62 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import AuthView from "./components/AuthView";
 import ProfileView from "./components/ProfileView";
-import RecipeView from "./components/RecipeView"; // Make sure to create this file next
+import RecipeView from "./components/RecipeView";
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState("profile"); // "profile" or "recipes"
+  const [currentView, setCurrentView] = useState("profile");
   const [profileData, setProfileData] = useState(null);
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Fetch or update local profile configurations whenever the session activates
-  useEffect(() => {
-    if (session) {
-      fetchUserProfile();
-    } else {
-      setProfileData(null);
-    }
-  }, [session]);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async (userId) => {
+    if (!userId) return;
     try {
       const { data, error } = await supabase
-        .from("profiles") // Matches your Supabase profiles table
-        .select("dietary_requirements, budget") // Pull whatever metrics you store
-        .eq("id", session.user.id)
+        .from("profiles")
+        .select("dietary_requirements, budget")
+        .eq("id", userId)
         .single();
 
       if (error) throw error;
       if (data) setProfileData(data);
     } catch (err) {
-      console.error("Error fetching sync preferences:", err.message);
+      console.error("Error fetching sync preferences:", err instanceof Error ? err.message : err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Get initial session cleanly
+    supabase.auth.getSession().then(({ data }) => {
+      if (isMounted) {
+        setSession(data.session);
+        if (data.session?.user?.id) {
+          fetchUserProfile(data.session.user.id);
+        }
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, newSession) => {
+      if (isMounted) {
+        setSession(newSession);
+        if (newSession?.user?.id) {
+          fetchUserProfile(newSession.user.id);
+        } else {
+          setProfileData(null);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
 
   if (loading) {
     return (
@@ -57,7 +66,6 @@ export default function App() {
     );
   }
 
-  // Unauthenticated view remains centered and clean
   if (!session) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
@@ -66,10 +74,8 @@ export default function App() {
     );
   }
 
-  // Authenticated Dashboard Layout
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col text-gray-900">
-      {/* Skeleton Header Navigation */}
       <nav className="w-full bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
         <span className="text-xl font-bold text-emerald-600 tracking-tight">NutriSupport</span>
         
@@ -106,22 +112,21 @@ export default function App() {
         </div>
       </nav>
 
-      {/* View Injection Viewport */}
       <main className="flex-1 w-full max-w-6xl mx-auto p-6">
-  {currentView === "profile" ? (
-    <div className="flex w-full justify-center items-start pt-8"> 
-      <div className="w-full max-w-xl"> {/* Limits the width so it doesn't stretch */}
-        <ProfileView 
-          session={session} 
-          onSignOut={() => setSession(null)} 
-          onProfileUpdate={fetchUserProfile} 
-        />
-      </div>
-    </div>
-  ) : (
-    <RecipeView profile={profileData} />
-  )}
-</main>
+        {currentView === "profile" ? (
+          <div className="flex w-full justify-center items-start pt-8"> 
+            <div className="w-full max-w-xl">
+              <ProfileView 
+                session={session} 
+                onSignOut={() => setSession(null)} 
+                onProfileUpdate={() => fetchUserProfile(session?.user?.id)} 
+              />
+            </div>
+          </div>
+        ) : (
+          <RecipeView profile={profileData} />
+        )}
+      </main>
     </div>
   );
 }

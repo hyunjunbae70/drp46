@@ -1,61 +1,68 @@
 import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
 export default function RecipeView({ profile }) {
-  const [maxTime, setMaxTime] = useState(45); // Initial state: 45 minutes
+  const [maxTime, setMaxTime] = useState(45);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchRecommendations();
-  }, [profile, maxTime]); // Triggers database query instantly whenever profile loads or user drags the slider
+    let isCurrent = true;
 
-  const fetchRecommendations = async () => {
-    setLoading(true);
-    try {
-      // Base Query: Get recipes that take less than or equal to the slider time limit
-      let query = supabase
-        .from("recipes")
-        .select("*")
-        .lte("prep_time_minutes", maxTime);
+    async function fetchRecommendations() {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from("recipes")
+          .select("*")
+          .lte("prep_time_minutes", maxTime);
 
-      // Apply budget filtering if it exists on the profile
-      if (profile?.budget) {
-        query = query.lte("cost_estimate", profile.budget);
+        if (profile?.budget) {
+          query = query.lte("cost_estimate", profile.budget);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        let processedRecipes = data || [];
+
+        if (profile?.dietary_requirements && profile.dietary_requirements.length > 0) {
+          processedRecipes = processedRecipes.filter((recipe) =>
+            profile.dietary_requirements.every((req) => 
+              recipe.dietary_tags?.includes(req)
+            )
+          );
+        }
+
+        // Only update state if the component hasn't unmounted or re-run
+        if (isCurrent) {
+          setRecipes(processedRecipes);
+        }
+      } catch (err) {
+        console.error("Error querying recommendations:", err instanceof Error ? err.message : err);
+      } finally {
+        if (isCurrent) {
+          setLoading(false);
+        }
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      let processedRecipes = data || [];
-
-      // Apply client-side filtering if you save dietary preferences as an array of tags
-      if (profile?.dietary_requirements && profile.dietary_requirements.length > 0) {
-        processedRecipes = processedRecipes.filter((recipe) =>
-          profile.dietary_requirements.every((req) => 
-            recipe.dietary_tags?.includes(req)
-          )
-        );
-      }
-
-      setRecipes(processedRecipes);
-    } catch (err) {
-      console.error("Error querying recommendations:", err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    fetchRecommendations();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [profile, maxTime]);
 
   return (
     <div className="space-y-6">
-      {/* Interactive Control Dashboard Widget */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Recipe Discoverer</h2>
           <p className="text-sm text-gray-500">Tailored suggestions syncing directly with your budget and dietary metrics.</p>
         </div>
 
-        {/* The Time Constraint Range Slider */}
         <div className="max-w-md space-y-2">
           <div className="flex justify-between items-center text-sm">
             <label htmlFor="time-range" className="font-semibold text-gray-700">Available Cooking Time:</label>
@@ -79,7 +86,6 @@ export default function RecipeView({ profile }) {
           </div>
         </div>
 
-        {/* Profile Constraints Badge Indicators */}
         {profile && (
           <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-400 font-medium">Applied limits:</span>
@@ -97,7 +103,6 @@ export default function RecipeView({ profile }) {
         )}
       </div>
 
-      {/* Output Render Matrix */}
       <div>
         {loading ? (
           <div className="flex justify-center items-center py-16">
@@ -130,7 +135,6 @@ export default function RecipeView({ profile }) {
                   <p className="text-sm text-gray-500 line-clamp-3">{recipe.description}</p>
                 </div>
                 
-                {/* Visual footer representing matching tags */}
                 {recipe.dietary_tags && recipe.dietary_tags.length > 0 && (
                   <div className="px-5 pb-4 pt-2 flex flex-wrap gap-1 border-t border-gray-50">
                     {recipe.dietary_tags.map((tag) => (
@@ -148,3 +152,10 @@ export default function RecipeView({ profile }) {
     </div>
   );
 }
+
+RecipeView.propTypes = {
+  profile: PropTypes.shape({
+    budget: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    dietary_requirements: PropTypes.arrayOf(PropTypes.string),
+  }),
+};
