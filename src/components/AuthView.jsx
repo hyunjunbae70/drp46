@@ -63,7 +63,7 @@ export default function AuthView() {
     <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
       <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          {isSignUp ? "Create an account" : "Welcome back"}
+          {isSignUp ? "Create an account" : "Welcome Jason"}
         </h1>
         <p className="mt-2 text-sm text-gray-500">
           {isSignUp ? "Sign up to get started" : "Sign in to manage your profile"}
