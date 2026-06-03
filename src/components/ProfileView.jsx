@@ -13,6 +13,7 @@ const DIETARY_OPTIONS = [
 export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [isEditing, setIsEditing] = useState(false);
 
   const [profile, setProfile] = useState({
     fullName: "",
@@ -131,9 +132,21 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
       }
 
       setMessage({ text: "Profile updated successfully!", type: "success" });
+      setIsEditing(false);
     }
 
     setLoading(false);
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({
+      fullName: profile.fullName,
+      username: profile.username,
+      dietaryRequirements: profile.dietaryRequirements,
+      budget: profile.budget,
+    });
+    setMessage({ text: "", type: "" });
+    setIsEditing(false);
   };
 
   const handleSignOut = async () => {
@@ -204,124 +217,151 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
         </div>
       </div>
 
-      <hr className="border-gray-100" />
-
-      <form onSubmit={handleUpdate} className="space-y-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Edit Details
-        </h2>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Update Full Name
-          </label>
-          <input
-            type="text"
-            value={formData.fullName}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                fullName: e.target.value,
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Type new full name..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Update Username
-          </label>
-          <input
-            type="text"
-            value={formData.username}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                username: e.target.value,
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Type new username..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Budget per meal
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={formData.budget}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                budget: Math.max(0, Number(e.target.value) || 0),
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Enter meal budget..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dietary Requirements
-          </label>
-
-          <div className="grid grid-cols-2 gap-2">
-            {DIETARY_OPTIONS.map((option) => {
-              const isSelected = formData.dietaryRequirements.includes(
-                option.id
-              );
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => toggleDietary(option.id)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all focus:outline-none ${
-                    isSelected
-                      ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="text-base leading-none">{option.emoji}</span>
-                  <span>{option.label}</span>
-
-                  {isSelected && (
-                    <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
-                      <svg
-                        className="h-2.5 w-2.5 text-white"
-                        fill="none"
-                        viewBox="0 0 10 10"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M2 5l2.5 2.5L8 3"
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
+      {!isEditing && (
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+          type="button"
+          onClick={() => {
+            setMessage({ text: "", type: "" });
+            setIsEditing(true);
+          }}
+          className="w-full rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none"
         >
-          {loading ? "Saving..." : "Save changes"}
+          Edit details
         </button>
-      </form>
+      )}
+
+      {isEditing && (
+        <>
+          <hr className="border-gray-100" />
+
+          <form onSubmit={handleUpdate} className="space-y-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+              Profile details
+            </h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    fullName: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="Type full name..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    username: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="Type username..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Budget per meal
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={formData.budget}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    budget: Math.max(0, Number(e.target.value) || 0),
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="Enter meal budget..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Dietary Requirements
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {DIETARY_OPTIONS.map((option) => {
+                  const isSelected = formData.dietaryRequirements.includes(
+                    option.id
+                  );
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleDietary(option.id)}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all focus:outline-none ${
+                        isSelected
+                          ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{option.emoji}</span>
+                      <span>{option.label}</span>
+
+                      {isSelected && (
+                        <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
+                          <svg
+                            className="h-2.5 w-2.5 text-white"
+                            fill="none"
+                            viewBox="0 0 10 10"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M2 5l2.5 2.5L8 3"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+              >
+                {loading ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                disabled={loading}
+                className="flex-1 rounded-lg border border-gray-300 bg-white p-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </>
+      )}
 
       {message.text && (
         <p
