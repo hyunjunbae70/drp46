@@ -10,7 +10,15 @@ export default function App() {
   const [currentView, setCurrentView] = useState("profile");
   const [profileData, setProfileData] = useState(null);
   const [guestNickname, setGuestNickname] = useState("");
+  const [guestProfileMessage, setGuestProfileMessage] = useState("");
   const isGuest = Boolean(session?.user?.is_anonymous);
+
+  const showGuestProfileMessage = () => {
+    setGuestProfileMessage(
+      "You don't have a registered profile, please sign in or register."
+    );
+    setCurrentView("recipes");
+  };
 
   const fetchUserProfile = useCallback(async (userId) => {
     if (!userId) return;
@@ -90,7 +98,16 @@ export default function App() {
                 Guest: {guestNickname}
               </span>
               <button
-                onClick={() => setCurrentView("recipes")}
+                onClick={showGuestProfileMessage}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+              >
+                Profile Settings
+              </button>
+              <button
+                onClick={() => {
+                  setGuestProfileMessage("");
+                  setCurrentView("recipes");
+                }}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 transition"
               >
                 Find Recipes
@@ -100,6 +117,7 @@ export default function App() {
                   setGuestNickname("");
                   setCurrentView("profile");
                   setProfileData(null);
+                  setGuestProfileMessage("");
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
               >
@@ -109,6 +127,11 @@ export default function App() {
           </nav>
 
           <main className="flex-1 w-full max-w-6xl mx-auto p-6">
+            {guestProfileMessage && (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                {guestProfileMessage}
+              </div>
+            )}
             <RecipeView profile={profileData} isGuest />
           </main>
         </div>
@@ -122,6 +145,7 @@ export default function App() {
             setGuestNickname(nickname);
             setCurrentView("recipes");
             setProfileData(null);
+            setGuestProfileMessage("");
           }}
         />
       </main>
@@ -135,9 +159,17 @@ export default function App() {
         
         <div className="flex items-center space-x-2">
           {isGuest ? (
-            <span className="px-3 py-2 text-sm font-medium text-gray-600">
-              Guest: {guestNickname || "Guest"}
-            </span>
+            <>
+              <span className="px-3 py-2 text-sm font-medium text-gray-600">
+                Guest: {guestNickname || "Guest"}
+              </span>
+              <button
+                onClick={showGuestProfileMessage}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+              >
+                Profile Settings
+              </button>
+            </>
           ) : (
             <button
               onClick={() => setCurrentView("profile")}
@@ -151,7 +183,10 @@ export default function App() {
             </button>
           )}
           <button
-            onClick={() => setCurrentView("recipes")}
+            onClick={() => {
+              setGuestProfileMessage("");
+              setCurrentView("recipes");
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               currentView === "recipes" || isGuest
                 ? "bg-emerald-50 text-emerald-700" 
@@ -167,6 +202,7 @@ export default function App() {
               setGuestNickname("");
               setProfileData(null);
               setCurrentView("profile");
+              setGuestProfileMessage("");
             }}
             className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
           >
@@ -176,6 +212,11 @@ export default function App() {
       </nav>
 
       <main className="flex-1 w-full max-w-6xl mx-auto p-6">
+        {guestProfileMessage && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            {guestProfileMessage}
+          </div>
+        )}
         {currentView === "profile" && !isGuest ? (
           <div className="flex w-full justify-center items-start pt-8"> 
             <div className="w-full max-w-xl">
