@@ -212,7 +212,7 @@ export default function ProfileView({
         )}
 
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
-          <span className="font-medium text-gray-500">Budget</span>
+          <span className="font-medium text-gray-500">Budget per meal</span>
           <span className="col-span-2 text-gray-900">£{profile.budget}</span>
         </div>
 
@@ -290,7 +290,7 @@ export default function ProfileView({
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Budget
+            Budget per meal
           </label>
           <input
             type="number"
@@ -303,7 +303,7 @@ export default function ProfileView({
               }))
             }
             className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Enter budget..."
+            placeholder="Enter budget per meal..."
           />
         </div>
 
