@@ -158,7 +158,11 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <RecipeView profile={isGuest ? guestProfile : profileData} isGuest={isGuest} />
+          <RecipeView
+            profile={isGuest ? guestProfile : profileData}
+            session={session}
+            isGuest={isGuest}
+          />
         )}
       </main>
     </div>

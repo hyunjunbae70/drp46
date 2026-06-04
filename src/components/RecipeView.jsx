@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
@@ -18,6 +18,9 @@ const APPLIANCE_OPTIONS = [
   { id: "slow-cooker", label: "Slow cooker" },
 ];
 
+const GUEST_FAVORITES_KEY = "nutrisupport_guest_favourites";
+const MEALS_PER_COMBINATION = 3;
+
 function formatMinutes(minutes) {
   if (!minutes) return "Time varies";
   return `${minutes} mins`;
@@ -28,6 +31,24 @@ function formatCost(cost) {
   return `Approx £${cost.toFixed(2)} per serving`;
 }
 
+function readStoredIds(key) {
+  try {
+    return JSON.parse(window.localStorage.getItem(key) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredIds(key, ids) {
+  window.localStorage.setItem(key, JSON.stringify(ids));
+}
+
+function average(values) {
+  const validValues = values.filter((value) => Number.isFinite(value));
+  if (validValues.length === 0) return null;
+  return validValues.reduce((total, value) => total + value, 0) / validValues.length;
+}
+
 function normalizeRecipe(row) {
   const estimatedCost = row.cost_estimate == null ? null : Number(row.cost_estimate);
 
@@ -36,6 +57,11 @@ function normalizeRecipe(row) {
     image: row.image_url,
     readyInMinutes: row.ready_in_minutes || row.prep_time_minutes,
     estimatedCost,
+    healthScore: row.health_score == null ? null : Number(row.health_score),
+    calories: row.calories == null ? null : Number(row.calories),
+    proteinGrams: row.protein_grams == null ? null : Number(row.protein_grams),
+    carbsGrams: row.carbs_grams == null ? null : Number(row.carbs_grams),
+    fatGrams: row.fat_grams == null ? null : Number(row.fat_grams),
     cookingSkill: row.cooking_skill,
     appliancesNeeded: row.appliances_needed || [],
     dietaryTags: row.dietary_tags || [],
@@ -49,13 +75,53 @@ function hasBudgetLimit(profile) {
   return profile?.budget !== undefined && profile?.budget !== null && profile.budget !== "";
 }
 
-export default function RecipeView({ profile, isGuest = false }) {
+function isMissingPersistenceTable(error) {
+  return error?.code === "PGRST205" || error?.message?.includes("schema cache");
+}
+
+function buildMealCombinations(recipes, offset) {
+  if (recipes.length === 0) return [];
+
+  const rotatedRecipes = recipes.map((_, index) => recipes[(index + offset) % recipes.length]);
+  const combinations = [];
+
+  for (let index = 0; index < rotatedRecipes.length; index += MEALS_PER_COMBINATION) {
+    const meals = rotatedRecipes.slice(index, index + MEALS_PER_COMBINATION);
+    if (meals.length < MEALS_PER_COMBINATION) break;
+
+    const tagCount = new Set(meals.flatMap((meal) => meal.dietaryTags)).size;
+    const averageHealth = average(meals.map((meal) => meal.healthScore));
+    const averageCalories = average(meals.map((meal) => meal.calories));
+    const averageProtein = average(meals.map((meal) => meal.proteinGrams));
+    const totalCost = meals.reduce((total, meal) => total + (meal.estimatedCost || 0), 0);
+    const balanceScore = Math.round((averageHealth || 0) + tagCount * 3);
+
+    combinations.push({
+      id: meals.map((meal) => meal.id).join("-"),
+      meals,
+      averageHealth,
+      averageCalories,
+      averageProtein,
+      balanceScore,
+      totalCost,
+      tagCount,
+    });
+  }
+
+  return combinations.sort((a, b) => b.balanceScore - a.balanceScore).slice(0, 6);
+}
+
+export default function RecipeView({ profile, session, isGuest = false }) {
   const [maxTime, setMaxTime] = useState(45);
   const [cookingSkill, setCookingSkill] = useState("any");
   const [selectedAppliances, setSelectedAppliances] = useState([]);
+  const [recommendationOffset, setRecommendationOffset] = useState(0);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [savedMealIds, setSavedMealIds] = useState([]);
+  const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -119,6 +185,95 @@ export default function RecipeView({ profile, isGuest = false }) {
       isCurrent = false;
     };
   }, [profile, maxTime, cookingSkill, selectedAppliances]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function fetchSavedMeals() {
+      if (isGuest) {
+        setSavedMealIds(readStoredIds(GUEST_FAVORITES_KEY));
+        return;
+      }
+
+      if (!session?.user?.id) {
+        setSavedMealIds([]);
+        return;
+      }
+
+      const { data: favourites, error: favouritesError } = await supabase
+        .from("user_favourite_recipes")
+        .select("recipe_id")
+        .eq("user_id", session.user.id);
+
+      if (!isCurrent) return;
+
+      if (favouritesError) {
+        if (isMissingPersistenceTable(favouritesError)) {
+          setSavedMealIds([]);
+          return;
+        }
+
+        setSaveMessage(favouritesError.message || "Unable to load saved meals.");
+        return;
+      }
+
+      setSavedMealIds((favourites || []).map((row) => row.recipe_id));
+    }
+
+    fetchSavedMeals();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isGuest, session]);
+
+  const visibleRecipes = useMemo(
+    () => showFavouritesOnly
+      ? recipes.filter((recipe) => savedMealIds.includes(recipe.id))
+      : recipes,
+    [recipes, savedMealIds, showFavouritesOnly]
+  );
+
+  const mealCombinations = useMemo(
+    () => buildMealCombinations(visibleRecipes, recommendationOffset),
+    [visibleRecipes, recommendationOffset]
+  );
+
+  const toggleFavourite = async (recipeId) => {
+    const isSaved = savedMealIds.includes(recipeId);
+    const nextIds = isSaved
+      ? savedMealIds.filter((id) => id !== recipeId)
+      : [...savedMealIds, recipeId];
+
+    setSavedMealIds(nextIds);
+    setSaveMessage(isSaved ? "Removed from favourites." : "Saved to favourites.");
+
+    if (isGuest) {
+      writeStoredIds(GUEST_FAVORITES_KEY, nextIds);
+      return;
+    }
+
+    if (!session?.user?.id) return;
+
+    const { error: saveError } = isSaved
+      ? await supabase
+        .from("user_favourite_recipes")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("recipe_id", recipeId)
+      : await supabase
+        .from("user_favourite_recipes")
+        .upsert({ user_id: session.user.id, recipe_id: recipeId });
+
+    if (saveError) {
+      setSavedMealIds(savedMealIds);
+      setSaveMessage(
+        isMissingPersistenceTable(saveError)
+          ? "Create the saved meals tables in Supabase to save favourites while signed in."
+          : saveError.message
+      );
+    }
+  };
 
   useEffect(() => {
     if (!selectedRecipeId) return undefined;
@@ -255,6 +410,24 @@ export default function RecipeView({ profile, isGuest = false }) {
               ))}
             </div>
 
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => toggleFavourite(selectedRecipe.id)}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  savedMealIds.includes(selectedRecipe.id)
+                    ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                    : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {savedMealIds.includes(selectedRecipe.id) ? "Favourited" : "Save favourite"}
+              </button>
+            </div>
+
+            {saveMessage && (
+              <p className="text-sm font-medium text-emerald-700">{saveMessage}</p>
+            )}
+
             {selectedRecipe.extendedIngredients?.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-xl font-bold text-gray-900">Ingredients</h2>
@@ -383,6 +556,20 @@ export default function RecipeView({ profile, isGuest = false }) {
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFavouritesOnly((current) => !current)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
+              showFavouritesOnly
+                ? "border-rose-300 bg-rose-50 text-rose-700"
+                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {showFavouritesOnly ? "Showing favourites" : `Show favourites (${savedMealIds.length})`}
+          </button>
+        </div>
+
         {profile && (
           <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-400 font-medium">Applied limits:</span>
@@ -430,14 +617,96 @@ export default function RecipeView({ profile, isGuest = false }) {
             </p>
             <p className="text-xs text-gray-400 mt-1">Try extending your slider range to reveal more variations.</p>
           </div>
+        ) : visibleRecipes.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
+            <p className="text-gray-400 font-medium">No favourites match your current filters.</p>
+            <p className="text-xs text-gray-400 mt-1">Save a recipe as a favourite or turn off the favourites filter.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recipes.map((recipe) => (
-              <button
-                type="button"
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Balanced meal combinations</h3>
+                  <p className="text-sm text-gray-500">
+                    Multiple meals grouped by health score, variety, time, cost, and your active filters.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecommendationOffset((current) => current + MEALS_PER_COMBINATION)}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none"
+                >
+                  Try another set
+                </button>
+              </div>
+
+              <div className="flex gap-4 overflow-x-auto pb-3">
+                {mealCombinations.map((combination) => (
+                  <article
+                    key={combination.id}
+                    className="min-w-[300px] max-w-sm flex-1 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-gray-900">Meal combo</h4>
+                        <p className="text-xs text-gray-500">
+                          Balance score {combination.balanceScore}
+                        </p>
+                      </div>
+                      {combination.totalCost > 0 && (
+                        <span className="rounded bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700">
+                          £{combination.totalCost.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {combination.meals.map((meal) => (
+                        <div key={meal.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRecipeId(meal.id)}
+                            className="text-left text-sm font-bold text-gray-900 hover:text-emerald-700"
+                          >
+                            {meal.title}
+                          </button>
+                          <div className="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                            <span className="rounded bg-white px-1.5 py-0.5">
+                              {formatMinutes(meal.readyInMinutes)}
+                            </span>
+                            {meal.cookingSkill && (
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-500">
+                                {meal.cookingSkill}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                      <span>Avg health: {combination.averageHealth?.toFixed(0) || "N/A"}</span>
+                      <span>Variety: {combination.tagCount} tags</span>
+                      <span>Calories: {combination.averageCalories?.toFixed(0) || "N/A"}</span>
+                      <span>Protein: {combination.averageProtein?.toFixed(0) || "N/A"}g</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            {saveMessage && (
+              <p className="rounded-lg bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                {saveMessage}
+              </p>
+            )}
+
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visibleRecipes.map((recipe) => (
+              <article
                 key={recipe.id} 
-                onClick={() => setSelectedRecipeId(recipe.id)}
-                className="bg-white text-left rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition duration-200 flex flex-col"
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm transition duration-200 flex flex-col"
               >
                 {recipe.image && (
                   <img
@@ -459,7 +728,13 @@ export default function RecipeView({ profile, isGuest = false }) {
                       </span>
                     )}
                   </div>
-                  <h3 className="font-bold text-gray-900 text-lg leading-tight">{recipe.title}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRecipeId(recipe.id)}
+                    className="text-left font-bold text-gray-900 text-lg leading-tight hover:text-emerald-700 focus:outline-none"
+                  >
+                    {recipe.title}
+                  </button>
                   <p className="text-sm text-gray-500 line-clamp-3">{recipe.description}</p>
                 </div>
                 
@@ -482,8 +757,23 @@ export default function RecipeView({ profile, isGuest = false }) {
                     ))}
                   </div>
                 )}
-              </button>
+
+                <div className="px-5 pb-5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleFavourite(recipe.id)}
+                    className={`w-full rounded-lg px-3 py-2 text-xs font-bold transition ${
+                      savedMealIds.includes(recipe.id)
+                        ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {savedMealIds.includes(recipe.id) ? "Favourited" : "Favourite"}
+                  </button>
+                </div>
+              </article>
             ))}
+            </section>
           </div>
         )}
       </div>
