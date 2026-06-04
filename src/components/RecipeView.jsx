@@ -2,6 +2,22 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
+const COOKING_SKILL_OPTIONS = [
+  { id: "any", label: "Any skill level" },
+  { id: "beginner", label: "Beginner" },
+  { id: "intermediate", label: "Intermediate" },
+  { id: "advanced", label: "Advanced" },
+];
+
+const APPLIANCE_OPTIONS = [
+  { id: "oven", label: "Oven" },
+  { id: "stovetop", label: "Stovetop" },
+  { id: "microwave", label: "Microwave" },
+  { id: "air-fryer", label: "Air fryer" },
+  { id: "blender", label: "Blender" },
+  { id: "slow-cooker", label: "Slow cooker" },
+];
+
 function formatMinutes(minutes) {
   if (!minutes) return "Time varies";
   return `${minutes} mins`;
@@ -20,6 +36,8 @@ function normalizeRecipe(row) {
     image: row.image_url,
     readyInMinutes: row.ready_in_minutes || row.prep_time_minutes,
     estimatedCost,
+    cookingSkill: row.cooking_skill,
+    appliancesNeeded: row.appliances_needed || [],
     dietaryTags: row.dietary_tags || [],
     extendedIngredients: row.ingredients || [],
     analyzedInstructions: row.analyzed_instructions || [],
@@ -33,6 +51,8 @@ function hasBudgetLimit(profile) {
 
 export default function RecipeView({ profile, isGuest = false }) {
   const [maxTime, setMaxTime] = useState(45);
+  const [cookingSkill, setCookingSkill] = useState("any");
+  const [selectedAppliances, setSelectedAppliances] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -65,6 +85,14 @@ export default function RecipeView({ profile, isGuest = false }) {
           query = query.contains("dietary_tags", dietaryFilters);
         }
 
+        if (cookingSkill !== "any") {
+          query = query.eq("cooking_skill", cookingSkill);
+        }
+
+        if (selectedAppliances.length > 0) {
+          query = query.contains("appliances_needed", selectedAppliances);
+        }
+
         const { data, error: queryError } = await query;
         if (queryError) throw queryError;
 
@@ -90,7 +118,7 @@ export default function RecipeView({ profile, isGuest = false }) {
     return () => {
       isCurrent = false;
     };
-  }, [profile, maxTime]);
+  }, [profile, maxTime, cookingSkill, selectedAppliances]);
 
   useEffect(() => {
     if (!selectedRecipeId) return undefined;
@@ -214,6 +242,19 @@ export default function RecipeView({ profile, isGuest = false }) {
               </div>
             </div>
 
+            <div className="flex flex-wrap gap-2 text-sm">
+              {selectedRecipe.cookingSkill && (
+                <span className="rounded bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                  {selectedRecipe.cookingSkill} skill
+                </span>
+              )}
+              {selectedRecipe.appliancesNeeded.map((appliance) => (
+                <span key={appliance} className="rounded bg-gray-100 px-3 py-1 font-medium text-gray-700">
+                  {appliance}
+                </span>
+              ))}
+            </div>
+
             {selectedRecipe.extendedIngredients?.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-xl font-bold text-gray-900">Ingredients</h2>
@@ -290,6 +331,58 @@ export default function RecipeView({ profile, isGuest = false }) {
           </div>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="skill-filter" className="block text-sm font-semibold text-gray-700">
+              Cooking skill
+            </label>
+            <select
+              id="skill-filter"
+              value={cookingSkill}
+              onChange={(e) => setCookingSkill(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
+            >
+              {COOKING_SKILL_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <span className="block text-sm font-semibold text-gray-700">
+              Appliances needed
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {APPLIANCE_OPTIONS.map((option) => {
+                const isSelected = selectedAppliances.includes(option.id);
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedAppliances((current) =>
+                        isSelected
+                          ? current.filter((appliance) => appliance !== option.id)
+                          : [...current, option.id]
+                      )
+                    }
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition focus:outline-none ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {profile && (
           <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-400 font-medium">Applied limits:</span>
@@ -301,6 +394,16 @@ export default function RecipeView({ profile, isGuest = false }) {
             {profile.dietary_requirements?.map((req) => (
               <span key={req} className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium px-2 py-1 rounded">
                 {req}
+              </span>
+            ))}
+            {cookingSkill !== "any" && (
+              <span className="bg-blue-50 text-blue-700 border border-blue-100 font-medium px-2 py-1 rounded">
+                Skill: {cookingSkill}
+              </span>
+            )}
+            {selectedAppliances.map((appliance) => (
+              <span key={appliance} className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
+                {appliance}
               </span>
             ))}
           </div>
@@ -322,7 +425,7 @@ export default function RecipeView({ profile, isGuest = false }) {
           <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
             <p className="text-gray-400 font-medium">
               {profile
-                ? "No recipes match your combined time, budget, and dietary choices."
+                ? "No recipes match your combined time, budget, dietary, skill, and appliance choices."
                 : "No recipes match the selected cooking time."}
             </p>
             <p className="text-xs text-gray-400 mt-1">Try extending your slider range to reveal more variations.</p>
@@ -360,8 +463,18 @@ export default function RecipeView({ profile, isGuest = false }) {
                   <p className="text-sm text-gray-500 line-clamp-3">{recipe.description}</p>
                 </div>
                 
-                {recipe.dietaryTags && recipe.dietaryTags.length > 0 && (
+                {(recipe.cookingSkill || recipe.appliancesNeeded.length > 0 || recipe.dietaryTags.length > 0) && (
                   <div className="px-5 pb-4 pt-2 flex flex-wrap gap-1 border-t border-gray-50">
+                    {recipe.cookingSkill && (
+                      <span className="bg-blue-50 text-blue-500 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
+                        {recipe.cookingSkill}
+                      </span>
+                    )}
+                    {recipe.appliancesNeeded.map((appliance) => (
+                      <span key={appliance} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
+                        {appliance}
+                      </span>
+                    ))}
                     {recipe.dietaryTags.map((tag) => (
                       <span key={tag} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
                         {tag}
