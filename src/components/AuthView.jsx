@@ -1,10 +1,12 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
-export default function AuthView() {
+export default function AuthView({ onContinueAsGuest }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [guestNickname, setGuestNickname] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -56,6 +58,34 @@ export default function AuthView() {
 
       if (error) setMessage({ text: error.message, type: "error" });
     }
+    setLoading(false);
+  };
+
+  const handleGuestContinue = async (event) => {
+    event.preventDefault();
+
+    const nickname = guestNickname.trim();
+    if (!nickname) {
+      setMessage({ text: "Enter a nickname to continue as a guest.", type: "error" });
+      return;
+    }
+
+    setLoading(true);
+    setMessage({ text: "", type: "" });
+
+    const { error } = await supabase.auth.signInAnonymously({
+      options: {
+        data: { nickname },
+      },
+    });
+
+    if (error) {
+      onContinueAsGuest(nickname);
+      setLoading(false);
+      return;
+    }
+
+    onContinueAsGuest(nickname);
     setLoading(false);
   };
 
@@ -151,6 +181,39 @@ export default function AuthView() {
           {isSignUp ? "Already have an account? Log in" : "Don't have an account? Sign up"}
         </button>
       </div>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
+          or
+        </span>
+        <div className="h-px flex-1 bg-gray-200" />
+      </div>
+
+      <form onSubmit={handleGuestContinue} className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Nickname</label>
+          <input
+            type="text"
+            value={guestNickname}
+            onChange={(e) => setGuestNickname(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+            placeholder="What should we call you?"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg border border-emerald-600 bg-white p-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 focus:outline-none disabled:opacity-50"
+        >
+          {loading ? "Continuing..." : "Continue as a guest"}
+        </button>
+      </form>
     </div>
   );
 }
+
+AuthView.propTypes = {
+  onContinueAsGuest: PropTypes.func.isRequired,
+};
