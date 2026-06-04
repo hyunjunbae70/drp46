@@ -36,14 +36,95 @@ export default function RecipeView({ profile }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+const GUEST_RECIPES = [
+  {
+    id: "guest-chickpea-salad",
+    title: "Chickpea Crunch Salad",
+    description: "A quick bowl with chickpeas, cucumber, tomato, herbs, lemon, and olive oil.",
+    prep_time_minutes: 15,
+    cost_estimate: 2.5,
+    dietary_tags: ["vegan", "vegetarian", "dairy-free"],
+  },
+  {
+    id: "guest-tomato-pasta",
+    title: "Tomato Basil Pasta",
+    description: "Simple pasta tossed with tomato sauce, garlic, basil, and a little grated cheese if wanted.",
+    prep_time_minutes: 25,
+    cost_estimate: 3,
+    dietary_tags: ["vegetarian"],
+  },
+  {
+    id: "guest-egg-fried-rice",
+    title: "Egg Fried Rice",
+    description: "Leftover rice cooked with egg, peas, spring onion, soy sauce, and sesame oil.",
+    prep_time_minutes: 20,
+    cost_estimate: 2,
+    dietary_tags: ["vegetarian", "dairy-free"],
+  },
+  {
+    id: "guest-lentil-soup",
+    title: "Red Lentil Soup",
+    description: "A warming lentil soup with carrot, onion, cumin, stock, and lemon.",
+    prep_time_minutes: 35,
+    cost_estimate: 2.75,
+    dietary_tags: ["vegan", "vegetarian", "dairy-free", "gluten-free", "halal", "kosher"],
+  },
+  {
+    id: "guest-tuna-potato",
+    title: "Tuna Jacket Potato",
+    description: "A baked potato topped with tuna, sweetcorn, yogurt or mayo, and black pepper.",
+    prep_time_minutes: 45,
+    cost_estimate: 3.5,
+    dietary_tags: ["gluten-free"],
+  },
+  {
+    id: "guest-bean-tacos",
+    title: "Black Bean Tacos",
+    description: "Soft tortillas filled with spiced black beans, salsa, lettuce, and lime.",
+    prep_time_minutes: 30,
+    cost_estimate: 3,
+    dietary_tags: ["vegan", "vegetarian", "dairy-free"],
+  },
+];
+
+export default function RecipeView({ profile, isGuest = false }) {
+  const [maxTime, setMaxTime] = useState(45);
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
 
     async function fetchRecommendations() {
       setLoading(true);
-      setError("");
+      setErrorMessage("");
       try {
+        if (isGuest) {
+          let processedRecipes = GUEST_RECIPES.filter(
+            (recipe) => recipe.prep_time_minutes <= maxTime
+          );
+
+          if (profile?.budget) {
+            processedRecipes = processedRecipes.filter(
+              (recipe) => recipe.cost_estimate <= Number(profile.budget)
+            );
+          }
+
+          if (profile?.dietary_requirements && profile.dietary_requirements.length > 0) {
+            processedRecipes = processedRecipes.filter((recipe) =>
+              profile.dietary_requirements.every((req) =>
+                recipe.dietary_tags?.includes(req)
+              )
+            );
+          }
+
+          if (isCurrent) {
+            setRecipes(processedRecipes);
+          }
+          return;
+        }
+
         let query = supabase
           .from("recipes")
           .select("*")
@@ -69,9 +150,9 @@ export default function RecipeView({ profile }) {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unable to load recipes.";
-        console.error("Error querying recipe recommendations:", message);
+        console.error("Error querying recommendations:", message);
         if (isCurrent) {
-          setError(message);
+          setErrorMessage(message);
           setRecipes([]);
         }
       } finally {
@@ -86,7 +167,7 @@ export default function RecipeView({ profile }) {
     return () => {
       isCurrent = false;
     };
-  }, [profile, maxTime]);
+  }, [profile, maxTime, isGuest]);
 
   useEffect(() => {
     if (!selectedRecipeId) return undefined;
@@ -256,7 +337,7 @@ export default function RecipeView({ profile }) {
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Recipe Discoverer</h2>
-          <p className="text-sm text-gray-500">Tailored suggestions from your saved recipe database using your budget and dietary preferences.</p>
+          <p className="text-sm text-gray-500">Tailored suggestions syncing directly with your meal budget and dietary metrics.</p>
         </div>
 
         <div className="max-w-md space-y-2">
@@ -287,7 +368,7 @@ export default function RecipeView({ profile }) {
             <span className="text-gray-400 font-medium">Applied limits:</span>
             {profile.budget && (
               <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
-                Max Budget: £{profile.budget}
+                Max meal budget: £{profile.budget}
               </span>
             )}
             {profile.dietary_requirements?.map((req) => (
@@ -308,9 +389,14 @@ export default function RecipeView({ profile }) {
           <div className="flex justify-center items-center py-16">
             <p className="text-gray-400 text-sm animate-pulse">Filtering recipes matching your guidelines...</p>
           </div>
+        ) : errorMessage ? (
+          <div className="text-center py-16 bg-white rounded-xl border border-dashed border-red-200 px-4">
+            <p className="text-red-500 font-medium">Recipes could not be loaded.</p>
+            <p className="text-xs text-red-400 mt-1">{errorMessage}</p>
+          </div>
         ) : recipes.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
-            <p className="text-gray-400 font-medium">No recipes match your combined time, budget, and dietary choices.</p>
+            <p className="text-gray-400 font-medium">No recipes match your combined time, meal budget, and dietary choices.</p>
             <p className="text-xs text-gray-400 mt-1">Try extending your slider range to reveal more variations.</p>
           </div>
         ) : (
@@ -369,4 +455,5 @@ RecipeView.propTypes = {
     budget: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dietary_requirements: PropTypes.arrayOf(PropTypes.string),
   }),
+  isGuest: PropTypes.bool,
 };
