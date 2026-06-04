@@ -28,12 +28,25 @@ export default function ProfileView({
   onProfileUpdate,
 }) {
   const isGuest = !session;
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
   const [profile, setProfile] = useState(() => toFormProfile(initialProfile));
 
   const [formData, setFormData] = useState(() => toFormProfile(initialProfile));
+
+  const startEditing = () => {
+    setFormData(profile);
+    setMessage({ text: "", type: "" });
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setFormData(profile);
+    setMessage({ text: "", type: "" });
+    setIsEditing(false);
+  };
 
   useEffect(() => {
     if (isGuest) {
@@ -125,6 +138,7 @@ export default function ProfileView({
       }
 
       setMessage({ text: "Guest profile updated for this session.", type: "success" });
+      setIsEditing(false);
       setLoading(false);
       return;
     }
@@ -162,6 +176,7 @@ export default function ProfileView({
       }
 
       setMessage({ text: "Profile updated successfully!", type: "success" });
+      setIsEditing(false);
     }
 
     setLoading(false);
@@ -243,126 +258,146 @@ export default function ProfileView({
 
       <hr className="border-gray-100" />
 
-      <form onSubmit={handleUpdate} className="space-y-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Edit Details
-        </h2>
+      {!isEditing ? (
+        <button
+          type="button"
+          onClick={startEditing}
+          className="w-full rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none"
+        >
+          Edit details
+        </button>
+      ) : (
+        <form onSubmit={handleUpdate} className="space-y-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Edit Details
+          </h2>
 
-        {!isGuest && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Update Full Name
-              </label>
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    fullName: e.target.value,
-                  }))
-                }
-                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-                placeholder="Type new full name..."
-              />
+          {!isGuest && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Update Full Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      fullName: e.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                  placeholder="Type new full name..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Update Username
+                </label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      username: e.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                  placeholder="Type new username..."
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Budget per meal
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.budget}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  budget: Math.max(0, Number(e.target.value) || 0),
+                }))
+              }
+              className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+              placeholder="Enter budget per meal..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dietary Requirements
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              {DIETARY_OPTIONS.map((option) => {
+                const isSelected = formData.dietaryRequirements.includes(
+                  option.id
+                );
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => toggleDietary(option.id)}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all focus:outline-none ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="text-base leading-none">{option.emoji}</span>
+                    <span>{option.label}</span>
+
+                    {isSelected && (
+                      <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
+                        <svg
+                          className="h-2.5 w-2.5 text-white"
+                          fill="none"
+                          viewBox="0 0 10 10"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M2 5l2.5 2.5L8 3"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Update Username
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    username: e.target.value,
-                  }))
-                }
-                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-                placeholder="Type new username..."
-              />
-            </div>
-          </>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Budget per meal
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={formData.budget}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                budget: Math.max(0, Number(e.target.value) || 0),
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Enter budget per meal..."
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dietary Requirements
-          </label>
+          </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {DIETARY_OPTIONS.map((option) => {
-              const isSelected = formData.dietaryRequirements.includes(
-                option.id
-              );
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => toggleDietary(option.id)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all focus:outline-none ${
-                    isSelected
-                      ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="text-base leading-none">{option.emoji}</span>
-                  <span>{option.label}</span>
-
-                  {isSelected && (
-                    <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
-                      <svg
-                        className="h-2.5 w-2.5 text-white"
-                        fill="none"
-                        viewBox="0 0 10 10"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M2 5l2.5 2.5L8 3"
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <button
+              type="button"
+              onClick={cancelEditing}
+              disabled={loading}
+              className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Save changes"}
+            </button>
           </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-blue-600 p-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Save changes"}
-        </button>
-      </form>
+        </form>
+      )}
 
       {message.text && (
         <p
