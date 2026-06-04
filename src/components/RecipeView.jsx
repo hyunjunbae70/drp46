@@ -27,6 +27,10 @@ function normalizeRecipe(row) {
   };
 }
 
+function hasBudgetLimit(profile) {
+  return profile?.budget !== undefined && profile?.budget !== null && profile.budget !== "";
+}
+
 export default function RecipeView({ profile, isGuest = false }) {
   const [maxTime, setMaxTime] = useState(45);
   const [recipes, setRecipes] = useState([]);
@@ -51,7 +55,7 @@ export default function RecipeView({ profile, isGuest = false }) {
           .order("health_score", { ascending: false, nullsFirst: false })
           .limit(60);
 
-        if (profile?.budget) {
+        if (hasBudgetLimit(profile)) {
           query = query.lte("cost_estimate", Number(profile.budget));
         }
 
@@ -289,7 +293,7 @@ export default function RecipeView({ profile, isGuest = false }) {
         {profile && (
           <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-gray-400 font-medium">Applied limits:</span>
-            {profile.budget && (
+            {hasBudgetLimit(profile) && (
               <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
                 Max Budget: £{profile.budget}
               </span>

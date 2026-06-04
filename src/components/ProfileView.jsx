@@ -31,26 +31,12 @@ export default function ProfileView({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
-  const [profile, setProfile] = useState({
-    fullName: "",
-    username: "",
-    dietaryRequirements: [],
-    budget: 0,
-  });
+  const [profile, setProfile] = useState(() => toFormProfile(initialProfile));
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    username: "",
-    dietaryRequirements: [],
-    budget: 0,
-  });
+  const [formData, setFormData] = useState(() => toFormProfile(initialProfile));
 
   useEffect(() => {
     if (isGuest) {
-      const guestData = toFormProfile(initialProfile);
-      setProfile(guestData);
-      setFormData(guestData);
-      setMessage({ text: "", type: "" });
       return undefined;
     }
 
@@ -92,7 +78,7 @@ export default function ProfileView({
     return () => {
       isMounted = false;
     };
-  }, [initialProfile, isGuest, session]);
+  }, [isGuest, session]);
 
   const toggleDietary = (id) => {
     setFormData((prev) => {
@@ -112,7 +98,7 @@ export default function ProfileView({
     const username = formData.username.trim();
     const budget = Math.max(0, Number(formData.budget) || 0);
 
-    if (!fullName || !username) {
+    if (!isGuest && (!fullName || !username)) {
       setMessage({
         text: "Full name and username cannot be empty.",
         type: "error",
@@ -125,8 +111,8 @@ export default function ProfileView({
 
     if (isGuest) {
       const updatedProfile = {
-        full_name: fullName,
-        username,
+        full_name: profile.fullName || "Guest",
+        username: profile.username || "guest",
         dietary_requirements: formData.dietaryRequirements,
         budget,
       };
@@ -192,7 +178,7 @@ export default function ProfileView({
     <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Your Profile
+          {isGuest ? "Guest Preferences" : "Your Profile"}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           {isGuest ? "Set temporary preferences for this visit" : "Manage your account details"}
@@ -200,26 +186,30 @@ export default function ProfileView({
       </div>
 
       <div className="rounded-xl bg-gray-50 p-4 space-y-2 border border-gray-100 text-sm">
-        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
-          <span className="font-medium text-gray-500">Email</span>
-          <span className="col-span-2 text-gray-900 font-mono text-xs break-all">
-            {isGuest ? "Guest session" : session.user.email}
-          </span>
-        </div>
+        {!isGuest && (
+          <>
+            <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+              <span className="font-medium text-gray-500">Email</span>
+              <span className="col-span-2 text-gray-900 font-mono text-xs break-all">
+                {session.user.email}
+              </span>
+            </div>
 
-        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
-          <span className="font-medium text-gray-500">Full Name</span>
-          <span className="col-span-2 text-gray-900 truncate">
-            {profile.fullName || "—"}
-          </span>
-        </div>
+            <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+              <span className="font-medium text-gray-500">Full Name</span>
+              <span className="col-span-2 text-gray-900 truncate">
+                {profile.fullName || "—"}
+              </span>
+            </div>
 
-        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
-          <span className="font-medium text-gray-500">Username</span>
-          <span className="col-span-2 text-gray-900 truncate">
-            {profile.username ? `@${profile.username}` : "—"}
-          </span>
-        </div>
+            <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+              <span className="font-medium text-gray-500">Username</span>
+              <span className="col-span-2 text-gray-900 truncate">
+                {profile.username ? `@${profile.username}` : "—"}
+              </span>
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Budget</span>
@@ -258,41 +248,45 @@ export default function ProfileView({
           Edit Details
         </h2>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Update Full Name
-          </label>
-          <input
-            type="text"
-            value={formData.fullName}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                fullName: e.target.value,
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Type new full name..."
-          />
-        </div>
+        {!isGuest && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Update Full Name
+              </label>
+              <input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    fullName: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="Type new full name..."
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Update Username
-          </label>
-          <input
-            type="text"
-            value={formData.username}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                username: e.target.value,
-              }))
-            }
-            className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Type new username..."
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Update Username
+              </label>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    username: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="Type new username..."
+              />
+            </div>
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
