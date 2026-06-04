@@ -1,7 +1,8 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
-export default function AuthView() {
+export default function AuthView({ onContinueAsGuest }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
@@ -151,6 +152,20 @@ export default function AuthView() {
           {isSignUp ? "Already have an account? Log in" : "Don't have an account? Sign up"}
         </button>
       </div>
+
+      {typeof onContinueAsGuest === "function" && (
+        <button
+          type="button"
+          onClick={onContinueAsGuest}
+          className="w-full rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 focus:outline-none"
+        >
+          Continue as guest
+        </button>
+      )}
     </div>
   );
 }
+
+AuthView.propTypes = {
+  onContinueAsGuest: PropTypes.func,
+};

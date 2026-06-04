@@ -27,7 +27,7 @@ function normalizeRecipe(row) {
   };
 }
 
-export default function RecipeView({ profile }) {
+export default function RecipeView({ profile, isGuest = false }) {
   const [maxTime, setMaxTime] = useState(45);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -256,7 +256,11 @@ export default function RecipeView({ profile }) {
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Recipe Discoverer</h2>
-          <p className="text-sm text-gray-500">Tailored suggestions from your saved recipe database using your budget and dietary preferences.</p>
+          <p className="text-sm text-gray-500">
+            {profile
+              ? `Tailored suggestions from your saved recipe database using your ${isGuest ? "temporary" : "saved"} budget and dietary preferences.`
+              : "Browse suggestions from the saved recipe database. Sign in to apply your budget and dietary preferences."}
+          </p>
         </div>
 
         <div className="max-w-md space-y-2">
@@ -306,11 +310,17 @@ export default function RecipeView({ profile }) {
           </div>
         ) : loading ? (
           <div className="flex justify-center items-center py-16">
-            <p className="text-gray-400 text-sm animate-pulse">Filtering recipes matching your guidelines...</p>
+            <p className="text-gray-400 text-sm animate-pulse">
+              {profile ? "Filtering recipes matching your guidelines..." : "Loading recipes..."}
+            </p>
           </div>
         ) : recipes.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
-            <p className="text-gray-400 font-medium">No recipes match your combined time, budget, and dietary choices.</p>
+            <p className="text-gray-400 font-medium">
+              {profile
+                ? "No recipes match your combined time, budget, and dietary choices."
+                : "No recipes match the selected cooking time."}
+            </p>
             <p className="text-xs text-gray-400 mt-1">Try extending your slider range to reveal more variations.</p>
           </div>
         ) : (
@@ -365,6 +375,7 @@ export default function RecipeView({ profile }) {
 }
 
 RecipeView.propTypes = {
+  isGuest: PropTypes.bool,
   profile: PropTypes.shape({
     budget: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     dietary_requirements: PropTypes.arrayOf(PropTypes.string),

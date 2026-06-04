@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
 const DIETARY_OPTIONS = [
@@ -10,7 +11,23 @@ const DIETARY_OPTIONS = [
   { id: "kosher", label: "Kosher", emoji: "✡️" },
 ];
 
-export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
+function toFormProfile(data) {
+  return {
+    fullName: data?.full_name || "",
+    username: data?.username || "",
+    dietaryRequirements: data?.dietary_requirements || [],
+    budget: data?.budget ?? 0,
+  };
+}
+
+export default function ProfileView({
+  session,
+  initialProfile,
+  onGuestProfileUpdate,
+  onSignOut,
+  onProfileUpdate,
+}) {
+  const isGuest = !session;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
@@ -29,6 +46,14 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
   });
 
   useEffect(() => {
+    if (isGuest) {
+      const guestData = toFormProfile(initialProfile);
+      setProfile(guestData);
+      setFormData(guestData);
+      setMessage({ text: "", type: "" });
+      return undefined;
+    }
+
     let isMounted = true;
 
     async function fetchProfile() {
@@ -67,7 +92,7 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
     return () => {
       isMounted = false;
     };
-  }, [session.user.id]);
+  }, [initialProfile, isGuest, session]);
 
   const toggleDietary = (id) => {
     setFormData((prev) => {
@@ -97,6 +122,26 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
 
     setLoading(true);
     setMessage({ text: "", type: "" });
+
+    if (isGuest) {
+      const updatedProfile = {
+        full_name: fullName,
+        username,
+        dietary_requirements: formData.dietaryRequirements,
+        budget,
+      };
+
+      setProfile(toFormProfile(updatedProfile));
+      setFormData(toFormProfile(updatedProfile));
+
+      if (typeof onGuestProfileUpdate === "function") {
+        onGuestProfileUpdate(updatedProfile);
+      }
+
+      setMessage({ text: "Guest profile updated for this session.", type: "success" });
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase
       .from("profiles")
@@ -137,7 +182,9 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    if (!isGuest) {
+      await supabase.auth.signOut();
+    }
     onSignOut();
   };
 
@@ -148,7 +195,7 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
           Your Profile
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage your account details
+          {isGuest ? "Set temporary preferences for this visit" : "Manage your account details"}
         </p>
       </div>
 
@@ -156,7 +203,7 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Email</span>
           <span className="col-span-2 text-gray-900 font-mono text-xs break-all">
-            {session.user.email}
+            {isGuest ? "Guest session" : session.user.email}
           </span>
         </div>
 
@@ -340,8 +387,26 @@ export default function ProfileView({ session, onSignOut, onProfileUpdate }) {
         onClick={handleSignOut}
         className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
       >
-        Sign out
+        {isGuest ? "Exit guest mode" : "Sign out"}
       </button>
     </div>
   );
 }
+
+ProfileView.propTypes = {
+  session: PropTypes.shape({
+    user: PropTypes.shape({
+      email: PropTypes.string,
+      id: PropTypes.string.isRequired,
+    }).isRequired,
+  }),
+  initialProfile: PropTypes.shape({
+    full_name: PropTypes.string,
+    username: PropTypes.string,
+    dietary_requirements: PropTypes.arrayOf(PropTypes.string),
+    budget: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  }),
+  onGuestProfileUpdate: PropTypes.func,
+  onSignOut: PropTypes.func.isRequired,
+  onProfileUpdate: PropTypes.func,
+};

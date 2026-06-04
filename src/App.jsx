@@ -6,9 +6,16 @@ import RecipeView from "./components/RecipeView";
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState("profile");
   const [profileData, setProfileData] = useState(null);
+  const [guestProfile, setGuestProfile] = useState({
+    full_name: "Guest",
+    username: "guest",
+    dietary_requirements: [],
+    budget: 0,
+  });
 
   const fetchUserProfile = useCallback(async (userId) => {
     if (!userId) return;
@@ -34,6 +41,7 @@ export default function App() {
       if (isMounted) {
         setSession(data.session);
         if (data.session?.user?.id) {
+          setIsGuest(false);
           fetchUserProfile(data.session.user.id);
         }
         setLoading(false);
@@ -45,6 +53,7 @@ export default function App() {
       if (isMounted) {
         setSession(newSession);
         if (newSession?.user?.id) {
+          setIsGuest(false);
           fetchUserProfile(newSession.user.id);
         } else {
           setProfileData(null);
@@ -66,10 +75,15 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!session && !isGuest) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
-        <AuthView />
+        <AuthView
+          onContinueAsGuest={() => {
+            setIsGuest(true);
+            setCurrentView("profile");
+          }}
+        />
       </main>
     );
   }
@@ -80,16 +94,18 @@ export default function App() {
         <span className="text-xl font-bold text-emerald-600 tracking-tight">NutriSupport</span>
         
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentView("profile")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              currentView === "profile" 
-                ? "bg-emerald-50 text-emerald-700" 
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Profile Settings
-          </button>
+          {(session || isGuest) && (
+            <button
+              onClick={() => setCurrentView("profile")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                currentView === "profile" 
+                  ? "bg-emerald-50 text-emerald-700" 
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Profile Settings
+            </button>
+          )}
           <button
             onClick={() => setCurrentView("recipes")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -100,31 +116,49 @@ export default function App() {
           >
             Find Recipes
           </button>
-          <button
-            onClick={() => {
-              supabase.auth.signOut();
-              setSession(null);
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
-          >
-            Sign Out
-          </button>
+          {session ? (
+            <button
+              onClick={() => {
+                supabase.auth.signOut();
+                setSession(null);
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsGuest(false);
+                setCurrentView("profile");
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition"
+            >
+              Sign In
+            </button>
+          )}
         </div>
       </nav>
 
       <main className="flex-1 w-full max-w-6xl mx-auto p-6">
-        {currentView === "profile" ? (
+        {(session || isGuest) && currentView === "profile" ? (
           <div className="flex w-full justify-center items-start pt-8"> 
             <div className="w-full max-w-xl">
               <ProfileView 
                 session={session} 
-                onSignOut={() => setSession(null)} 
+                initialProfile={isGuest ? guestProfile : null}
+                onGuestProfileUpdate={setGuestProfile}
+                onSignOut={() => {
+                  setSession(null);
+                  setIsGuest(false);
+                  setCurrentView("profile");
+                }} 
                 onProfileUpdate={() => fetchUserProfile(session?.user?.id)} 
               />
             </div>
           </div>
         ) : (
-          <RecipeView profile={profileData} />
+          <RecipeView profile={isGuest ? guestProfile : profileData} isGuest={isGuest} />
         )}
       </main>
     </div>
