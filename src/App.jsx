@@ -7,7 +7,7 @@ import RecipeView from "./components/RecipeView";
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState("profile");
+  const [currentView, setCurrentView] = useState("recipes");
   const [profileData, setProfileData] = useState(null);
   const [guestNickname, setGuestNickname] = useState("");
   const [guestProfileMessage, setGuestProfileMessage] = useState("");
