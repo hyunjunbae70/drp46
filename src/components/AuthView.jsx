@@ -2,6 +2,9 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
+// Metric tracking functionality
+import { startJourney } from "../analytics";
+
 export default function AuthView({ onContinueAsGuest }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,6 +49,7 @@ export default function AuthView({ onContinueAsGuest }) {
           setMessage({ text: profileError.message, type: "error" });
         } else {
           setMessage({ text: "Account created successfully!", type: "success" });
+          startJourney();
         }
       }
     } else {
@@ -55,6 +59,10 @@ export default function AuthView({ onContinueAsGuest }) {
         password: formData.password,
       });
 
+      
+      if (!error) {
+        startJourney();
+      }
       if (error) setMessage({ text: error.message, type: "error" });
     }
     setLoading(false);
