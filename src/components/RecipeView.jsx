@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
 // Metric tracking functionality
-import { startJourney, trackStep, completeJourney, persistJourney } from "../analytics";
+import { trackStep, completeJourney, persistJourney } from "../analytics";
 
 const COOKING_SKILL_OPTIONS = [
   { id: "any", label: "Any skill level" },
