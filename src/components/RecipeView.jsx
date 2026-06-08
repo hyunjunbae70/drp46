@@ -2,6 +2,9 @@ import { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
 
+// Metric tracking functionality
+import { trackStep, completeJourney, persistJourney } from "../analytics";
+
 const COOKING_SKILL_OPTIONS = [
   { id: "any", label: "Any skill level" },
   { id: "beginner", label: "Beginner" },
@@ -495,7 +498,10 @@ export default function RecipeView({ profile, session, isGuest = false }) {
             max="120"
             step="5"
             value={maxTime}
-            onChange={(e) => setMaxTime(Number(e.target.value))}
+            onChange={(e) => {
+              trackStep("changed_time_filter")
+              setMaxTime(Number(e.target.value));
+            }}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
           />
           <div className="flex justify-between text-xs text-gray-400 font-medium px-0.5">
@@ -666,7 +672,13 @@ export default function RecipeView({ profile, session, isGuest = false }) {
                         <div key={meal.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                           <button
                             type="button"
-                            onClick={() => setSelectedRecipeId(meal.id)}
+                            onClick={() => {
+                              trackStep("opened_recipe_from_meal_combo");
+                              const metrics = completeJourney(meal.id);
+                              persistJourney(metrics, supabase, session?.user?.id);
+                              console.log(metrics);
+                              setSelectedRecipeId(meal.id);
+                            }}
                             className="text-left text-sm font-bold text-gray-900 hover:text-emerald-700"
                           >
                             {meal.title}
@@ -730,7 +742,13 @@ export default function RecipeView({ profile, session, isGuest = false }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedRecipeId(recipe.id)}
+                    onClick={() => {
+                      trackStep("opened_recipe_from_grid");
+                      const metrics = completeJourney(recipe.id);
+                      persistJourney(metrics, supabase, session?.user?.id);
+                      console.log(metrics)
+                      setSelectedRecipeId(recipe.id);
+                    }}
                     className="text-left font-bold text-gray-900 text-lg leading-tight hover:text-emerald-700 focus:outline-none"
                   >
                     {recipe.title}

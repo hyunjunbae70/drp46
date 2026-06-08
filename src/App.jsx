@@ -4,6 +4,9 @@ import AuthView from "./components/AuthView";
 import ProfileView from "./components/ProfileView";
 import RecipeView from "./components/RecipeView";
 
+// Metric tracking functionality
+import { startJourney, trackStep } from "./analytics";
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -80,6 +83,7 @@ export default function App() {
       <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6">
         <AuthView
           onContinueAsGuest={() => {
+            startJourney();
             setIsGuest(true);
             setCurrentView("profile");
           }}
@@ -107,7 +111,10 @@ export default function App() {
             </button>
           )}
           <button
-            onClick={() => setCurrentView("recipes")}
+            onClick={() => {
+              trackStep("opened_recipes");
+              setCurrentView("recipes");
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               currentView === "recipes" 
                 ? "bg-emerald-50 text-emerald-700" 
