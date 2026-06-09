@@ -11,12 +11,14 @@ const DIETARY_OPTIONS = [
   { id: "kosher", label: "Kosher", emoji: "✡️" },
 ];
 
+const DEFAULT_BUDGET = 10;
+
 function toFormProfile(data) {
   return {
     fullName: data?.full_name || "",
     username: data?.username || "",
     dietaryRequirements: data?.dietary_requirements || [],
-    budget: data?.budget ?? 0,
+    budget: data?.budget ?? DEFAULT_BUDGET,
   };
 }
 
@@ -74,14 +76,14 @@ export default function ProfileView({
           fullName: data.full_name || "",
           username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
-          budget: data.budget ?? 0,
+          budget: data.budget ?? DEFAULT_BUDGET,
         });
 
         setFormData({
           fullName: data.full_name || "",
           username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
-          budget: data.budget ?? 0,
+          budget: data.budget ?? DEFAULT_BUDGET,
         });
       }
     }

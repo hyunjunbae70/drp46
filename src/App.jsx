@@ -7,17 +7,19 @@ import RecipeView from "./components/RecipeView";
 // Metric tracking functionality
 import { startJourney, trackStep } from "./analytics";
 
+const DEFAULT_BUDGET = 10;
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState("profile");
+  const [currentView, setCurrentView] = useState("recipes");
   const [profileData, setProfileData] = useState(null);
   const [guestProfile, setGuestProfile] = useState({
     full_name: "Guest",
     username: "guest",
     dietary_requirements: [],
-    budget: 0,
+    budget: DEFAULT_BUDGET,
   });
 
   const fetchUserProfile = useCallback(async (userId) => {
@@ -30,7 +32,12 @@ export default function App() {
         .single();
 
       if (error) throw error;
-      if (data) setProfileData(data);
+      if (data) {
+        setProfileData({
+          ...data,
+          budget: data.budget ?? DEFAULT_BUDGET,
+        });
+      }
     } catch (err) {
       console.error("Error fetching sync preferences:", err instanceof Error ? err.message : err);
     }
@@ -45,6 +52,7 @@ export default function App() {
         setSession(data.session);
         if (data.session?.user?.id) {
           setIsGuest(false);
+          setCurrentView("recipes");
           fetchUserProfile(data.session.user.id);
         }
         setLoading(false);
@@ -57,6 +65,7 @@ export default function App() {
         setSession(newSession);
         if (newSession?.user?.id) {
           setIsGuest(false);
+          setCurrentView("recipes");
           fetchUserProfile(newSession.user.id);
         } else {
           setProfileData(null);
@@ -85,7 +94,7 @@ export default function App() {
           onContinueAsGuest={() => {
             startJourney();
             setIsGuest(true);
-            setCurrentView("profile");
+            setCurrentView("recipes");
           }}
         />
       </main>

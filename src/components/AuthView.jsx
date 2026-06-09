@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 // Metric tracking functionality
 import { startJourney } from "../analytics";
 
+const DEFAULT_BUDGET = 10;
+
 export default function AuthView({ onContinueAsGuest }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,7 @@ export default function AuthView({ onContinueAsGuest }) {
           id: data.user.id,
           full_name: formData.fullName,
           username: formData.username,
+          budget: DEFAULT_BUDGET,
         });
 
         if (profileError) {
