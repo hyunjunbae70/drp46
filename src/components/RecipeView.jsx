@@ -23,10 +23,6 @@ const APPLIANCE_OPTIONS = [
 
 const GUEST_FAVORITES_KEY = "nutrisupport_guest_favourites";
 const MEALS_PER_COMBINATION = 3;
-const RECIPE_VISIBILITY_OPTIONS = [
-  { id: "private", label: "Private" },
-  { id: "public", label: "Public" },
-];
 
 const EMPTY_RECIPE_FORM = {
   title: "",
@@ -38,8 +34,7 @@ const EMPTY_RECIPE_FORM = {
   cookingSkill: "beginner",
   appliancesNeeded: [],
   ingredientsText: "",
-  instructionsText: "",
-  visibility: "private",
+  instructionsText: ""
 };
 
 function formatMinutes(minutes) {
@@ -96,8 +91,7 @@ function recipeToForm(recipe) {
     cookingSkill: recipe.cooking_skill || recipe.cookingSkill || "beginner",
     appliancesNeeded: recipe.appliances_needed || recipe.appliancesNeeded || [],
     ingredientsText: linesFromJsonList(recipe.ingredients || recipe.extendedIngredients),
-    instructionsText: linesFromJsonList(recipe.instructions || recipe.instructionSteps),
-    visibility: recipe.visibility || "private",
+    instructionsText: linesFromJsonList(recipe.instructions || recipe.instructionSteps)
   };
 }
 
@@ -123,8 +117,7 @@ function buildRecipePayload(formData, userId) {
     ingredients,
     instructions,
     user_id: userId,
-    visibility: formData.visibility,
-    is_user_submitted: true,
+    is_user_submitted: true
   };
 }
 
@@ -154,8 +147,7 @@ function normalizeRecipe(row) {
     analyzedInstructions: row.analyzed_instructions || [],
     instructionSteps: row.instructions || [],
     isUserSubmitted: row.is_user_submitted || false,
-    visibility: row.visibility || "public",
-    ownerId: row.user_id,
+    ownerId: row.user_id
   };
 }
 
@@ -305,23 +297,7 @@ function RecipeEditor({
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="recipe-visibility" className="block text-sm font-semibold text-gray-700">
-            Visibility
-          </label>
-          <select
-            id="recipe-visibility"
-            value={formData.visibility}
-            onChange={(event) => onChange("visibility", event.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
-          >
-            {RECIPE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        
 
         <div className="space-y-2 md:col-span-2">
           <span className="block text-sm font-semibold text-gray-700">Dietary tags</span>
@@ -483,14 +459,6 @@ export default function RecipeView({ profile, session, isGuest = false }) {
           .select("*")
           .order("health_score", { ascending: false, nullsFirst: false })
           .limit(60);
-
-        if (showMineOnly && userId) {
-          query = query.eq("user_id", userId);
-        } else if (userId) {
-          query = query.or(`visibility.eq.public,user_id.eq.${userId},user_id.is.null`);
-        } else {
-          query = query.or("visibility.eq.public,user_id.is.null");
-        }
 
         if (!showMineOnly) {
           query = query.lte("prep_time_minutes", maxTime);
