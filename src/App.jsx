@@ -20,6 +20,11 @@ export default function App() {
     username: "guest",
     dietary_requirements: [],
     budget: DEFAULT_BUDGET,
+    weight_kg: "",
+    height_cm: "",
+    age: "",
+    activity_level: "moderate",
+    goal: "maintenance",
   });
 
   const fetchUserProfile = useCallback(async (userId) => {
@@ -27,7 +32,9 @@ export default function App() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("dietary_requirements, budget")
+        .select(
+          "dietary_requirements, budget, weight_kg, height_cm, age, activity_level, goal"
+        )
         .eq("id", userId)
         .single();
 
@@ -130,7 +137,7 @@ export default function App() {
                 : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            Find Recipes
+            Meal Planner
           </button>
           {session ? (
             <button
