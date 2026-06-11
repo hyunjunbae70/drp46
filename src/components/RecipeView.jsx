@@ -446,6 +446,7 @@ export default function RecipeView({ profile, session, isGuest = false }) {
   const [showMineOnly, setShowMineOnly] = useState(false);
   const [recipeRefreshToken, setRecipeRefreshToken] = useState(0);
   const [activeTab, setActiveTab] = useState("recipes");
+  const [showFilters, setShowFilters] = useState(false);
   const userId = session?.user?.id;
 
   useEffect(() => {
@@ -967,108 +968,125 @@ export default function RecipeView({ profile, session, isGuest = false }) {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="skill-filter" className="block text-sm font-semibold text-gray-700">
-              Cooking skill
-            </label>
-            <select
-              id="skill-filter"
-              value={cookingSkill}
-              onChange={(e) => setCookingSkill(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
-            >
-              {COOKING_SKILL_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <span className="block text-sm font-semibold text-gray-700">
-              Appliances needed
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {APPLIANCE_OPTIONS.map((option) => {
-                const isSelected = selectedAppliances.includes(option.id);
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedAppliances((current) =>
-                        isSelected
-                          ? current.filter((appliance) => appliance !== option.id)
-                          : [...current, option.id]
-                      )
-                    }
-                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition focus:outline-none ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowFavouritesOnly((current) => !current)}
-            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
-              showFavouritesOnly
-                ? "border-rose-300 bg-rose-50 text-rose-700"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
+        <button
+          type="button"
+          onClick={() => setShowFilters((current) => !current)}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition focus:outline-none w-fit"
+        >
+          <span>{showFilters ? "Hide filters" : "More filters"}</span>
+          <svg
+            className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
-            {showFavouritesOnly ? "Showing favourites" : `Show favourites (${savedMealIds.length})`}
-          </button>
-          {!isGuest && userId && (
-            <button
-              type="button"
-              onClick={() => setShowMineOnly((current) => !current)}
-              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
-                showMineOnly
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {showMineOnly ? "Showing my recipes" : "Show my recipes"}
-            </button>
-          )}
-        </div>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-        {profile && (
-          <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-gray-400 font-medium">Applied limits:</span>
-            {hasBudgetLimit(profile) && (
-              <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
-                Max Budget: £{profile.budget}
-              </span>
+        {showFilters && (
+          <div className="space-y-4 pt-2 border-t border-gray-100">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="skill-filter" className="block text-sm font-semibold text-gray-700">
+                  Cooking skill
+                </label>
+                <select
+                  id="skill-filter"
+                  value={cookingSkill}
+                  onChange={(e) => setCookingSkill(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
+                >
+                  {COOKING_SKILL_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <span className="block text-sm font-semibold text-gray-700">
+                  Appliances you have
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {APPLIANCE_OPTIONS.map((option) => {
+                    const isSelected = selectedAppliances.includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedAppliances((current) =>
+                            isSelected
+                              ? current.filter((appliance) => appliance !== option.id)
+                              : [...current, option.id]
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-2 text-sm font-medium transition focus:outline-none ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFavouritesOnly((current) => !current)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
+                  showFavouritesOnly
+                    ? "border-rose-300 bg-rose-50 text-rose-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {showFavouritesOnly ? "Showing favourites" : `Show favourites (${savedMealIds.length})`}
+              </button>
+              {!isGuest && userId && (
+                <button
+                  type="button"
+                  onClick={() => setShowMineOnly((current) => !current)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
+                    showMineOnly
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {showMineOnly ? "Showing my recipes" : "Show my recipes"}
+                </button>
+              )}
+            </div>
+
+            {profile && (
+              <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-gray-400 font-medium">Applied limits:</span>
+                {hasBudgetLimit(profile) && (
+                  <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
+                    Max Budget: £{profile.budget}
+                  </span>
+                )}
+                {profile.dietary_requirements?.map((req) => (
+                  <span key={req} className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium px-2 py-1 rounded">
+                    {req}
+                  </span>
+                ))}
+                {cookingSkill !== "any" && (
+                  <span className="bg-blue-50 text-blue-700 border border-blue-100 font-medium px-2 py-1 rounded">
+                    Skill: {cookingSkill}
+                  </span>
+                )}
+                {selectedAppliances.map((appliance) => (
+                  <span key={appliance} className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
+                    {appliance}
+                  </span>
+                ))}
+              </div>
             )}
-            {profile.dietary_requirements?.map((req) => (
-              <span key={req} className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium px-2 py-1 rounded">
-                {req}
-              </span>
-            ))}
-            {cookingSkill !== "any" && (
-              <span className="bg-blue-50 text-blue-700 border border-blue-100 font-medium px-2 py-1 rounded">
-                Skill: {cookingSkill}
-              </span>
-            )}
-            {selectedAppliances.map((appliance) => (
-              <span key={appliance} className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
-                {appliance}
-              </span>
-            ))}
           </div>
         )}
       </div>
