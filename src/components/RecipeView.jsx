@@ -942,7 +942,7 @@ export default function RecipeView({ profile, session, isGuest = false }) {
           )}
         </div>
 
-        <div className="max-w-md space-y-2">
+        <div className="max-w-x1 space-y-2">
           <div className="flex justify-between items-center text-sm">
             <label htmlFor="time-range" className="font-semibold text-gray-700">Available Cooking Time:</label>
             <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full text-xs">
@@ -963,24 +963,47 @@ export default function RecipeView({ profile, session, isGuest = false }) {
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
           />
           <div className="flex justify-between text-xs text-gray-400 font-medium px-0.5">
-            <span>10 min express</span>
-            <span>2 hours max</span>
+            <span>10 min</span>
+            <span>2 hours</span>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowFilters((current) => !current)}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition focus:outline-none w-fit"
-        >
-          <span>{showFilters ? "Hide filters" : "More filters"}</span>
-          <svg
-            className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowFilters((current) => !current)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition focus:outline-none w-fit"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            <span>{showFilters ? "Hide filters" : "More filters"}</span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {cookingSkill !== "any" && (
+            <span className="bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-2 py-1 rounded-full">
+              {cookingSkill}
+            </span>
+          )}
+          {selectedAppliances.map((appliance) => (
+            <span key={appliance} className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {appliance}
+            </span>
+          ))}
+          {showFavouritesOnly && (
+            <span className="bg-rose-50 text-rose-700 border border-rose-100 text-xs font-semibold px-2 py-1 rounded-full">
+              Favourites
+            </span>
+          )}
+          {showMineOnly && (
+            <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold px-2 py-1 rounded-full">
+              My recipes
+            </span>
+          )}
+        </div>
 
         {showFilters && (
           <div className="space-y-4 pt-2 border-t border-gray-100">
