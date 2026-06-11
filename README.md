@@ -2,6 +2,16 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Meal Planner Setup
+
+Create a local `.env` file using `.env.example` and add:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SPOONACULAR_API_KEY`
+
+Apply the SQL in `supabase/migrations/20260611120000_add_meal_planner.sql` to your Supabase project before using the meal planner. It adds nutrition profile fields and the `meal_logs` table used for today's meals.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

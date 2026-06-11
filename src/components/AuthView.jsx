@@ -46,6 +46,8 @@ export default function AuthView({ onContinueAsGuest }) {
           full_name: formData.fullName,
           username: formData.username,
           budget: DEFAULT_BUDGET,
+          goal: "maintenance",
+          activity_level: "moderate",
         });
 
         if (profileError) {

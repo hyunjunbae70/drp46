@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { supabase } from "../lib/supabase";
+import {
+  ACTIVITY_LEVELS,
+  GOAL_OPTIONS,
+  getActivityLabel,
+  getGoalLabel,
+} from "../lib/nutrition";
 
 const DIETARY_OPTIONS = [
   { id: "vegan", label: "Vegan", emoji: "🌱" },
@@ -19,6 +25,11 @@ function toFormProfile(data) {
     username: data?.username || "",
     dietaryRequirements: data?.dietary_requirements || [],
     budget: data?.budget ?? DEFAULT_BUDGET,
+    weightKg: data?.weight_kg ?? "",
+    heightCm: data?.height_cm ?? "",
+    age: data?.age ?? "",
+    activityLevel: data?.activity_level || "moderate",
+    goal: data?.goal || "maintenance",
   };
 }
 
@@ -60,7 +71,9 @@ export default function ProfileView({
     async function fetchProfile() {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, username, dietary_requirements, budget")
+        .select(
+          "full_name, username, dietary_requirements, budget, weight_kg, height_cm, age, activity_level, goal"
+        )
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -77,6 +90,11 @@ export default function ProfileView({
           username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
           budget: data.budget ?? DEFAULT_BUDGET,
+          weightKg: data.weight_kg ?? "",
+          heightCm: data.height_cm ?? "",
+          age: data.age ?? "",
+          activityLevel: data.activity_level || "moderate",
+          goal: data.goal || "maintenance",
         });
 
         setFormData({
@@ -84,6 +102,11 @@ export default function ProfileView({
           username: data.username || "",
           dietaryRequirements: data.dietary_requirements || [],
           budget: data.budget ?? DEFAULT_BUDGET,
+          weightKg: data.weight_kg ?? "",
+          heightCm: data.height_cm ?? "",
+          age: data.age ?? "",
+          activityLevel: data.activity_level || "moderate",
+          goal: data.goal || "maintenance",
         });
       }
     }
@@ -112,10 +135,27 @@ export default function ProfileView({
     const fullName = formData.fullName.trim();
     const username = formData.username.trim();
     const budget = Math.max(0, Number(formData.budget) || 0);
+    const weightKg = formData.weightKg === "" ? null : Number(formData.weightKg);
+    const heightCm = formData.heightCm === "" ? null : Number(formData.heightCm);
+    const age = formData.age === "" ? null : Number(formData.age);
+    const activityLevel = formData.activityLevel || "moderate";
+    const goal = formData.goal || "maintenance";
 
     if (!isGuest && (!fullName || !username)) {
       setMessage({
         text: "Full name and username cannot be empty.",
+        type: "error",
+      });
+      return;
+    }
+
+    if (
+      (weightKg !== null && weightKg <= 0) ||
+      (heightCm !== null && heightCm <= 0) ||
+      (age !== null && age <= 0)
+    ) {
+      setMessage({
+        text: "Weight, height, and age must be positive numbers.",
         type: "error",
       });
       return;
@@ -130,6 +170,11 @@ export default function ProfileView({
         username: profile.username || "guest",
         dietary_requirements: formData.dietaryRequirements,
         budget,
+        weight_kg: weightKg,
+        height_cm: heightCm,
+        age,
+        activity_level: activityLevel,
+        goal,
       };
 
       setProfile(toFormProfile(updatedProfile));
@@ -152,6 +197,11 @@ export default function ProfileView({
         username,
         dietary_requirements: formData.dietaryRequirements,
         budget,
+        weight_kg: weightKg,
+        height_cm: heightCm,
+        age,
+        activity_level: activityLevel,
+        goal,
       })
       .eq("id", session.user.id);
 
@@ -163,6 +213,11 @@ export default function ProfileView({
         username,
         dietaryRequirements: formData.dietaryRequirements,
         budget,
+        weightKg,
+        heightCm,
+        age,
+        activityLevel,
+        goal,
       });
 
       setFormData((prev) => ({
@@ -170,6 +225,11 @@ export default function ProfileView({
         fullName,
         username,
         budget,
+        weightKg: weightKg ?? "",
+        heightCm: heightCm ?? "",
+        age: age ?? "",
+        activityLevel,
+        goal,
       }));
 
       // 🔥 CRITICAL FIX: Inform App.jsx that the database values have updated
@@ -231,6 +291,29 @@ export default function ProfileView({
         <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
           <span className="font-medium text-gray-500">Budget per meal</span>
           <span className="col-span-2 text-gray-900">£{profile.budget}</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+          <span className="font-medium text-gray-500">Goal</span>
+          <span className="col-span-2 text-gray-900">
+            {getGoalLabel(profile.goal)}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+          <span className="font-medium text-gray-500">Body</span>
+          <span className="col-span-2 text-gray-900">
+            {profile.weightKg && profile.heightCm && profile.age
+              ? `${profile.weightKg}kg, ${profile.heightCm}cm, ${profile.age} years`
+              : "—"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-200">
+          <span className="font-medium text-gray-500">Activity</span>
+          <span className="col-span-2 text-gray-900">
+            {getActivityLabel(profile.activityLevel)}
+          </span>
         </div>
 
         <div className="grid grid-cols-3 gap-4 py-2">
@@ -331,6 +414,118 @@ export default function ProfileView({
               className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
               placeholder="Enter budget per meal..."
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Personal Goal
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {GOAL_OPTIONS.map((option) => {
+                const isSelected = formData.goal === option.id;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, goal: option.id }))
+                    }
+                    className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all focus:outline-none ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Weight (kg)
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={formData.weightKg}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    weightKg: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="70"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Height (cm)
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={formData.heightCm}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    heightCm: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="175"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Age
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={formData.age}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    age: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                placeholder="30"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Activity Level
+            </label>
+            <select
+              value={formData.activityLevel}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  activityLevel: e.target.value,
+                }))
+              }
+              className="mt-2 w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              {ACTIVITY_LEVELS.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -436,6 +631,11 @@ ProfileView.propTypes = {
     username: PropTypes.string,
     dietary_requirements: PropTypes.arrayOf(PropTypes.string),
     budget: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    weight_kg: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    height_cm: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    age: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    activity_level: PropTypes.string,
+    goal: PropTypes.string,
   }),
   onGuestProfileUpdate: PropTypes.func,
   onSignOut: PropTypes.func.isRequired,
