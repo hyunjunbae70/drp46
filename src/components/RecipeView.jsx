@@ -432,7 +432,7 @@ export default function RecipeView({ profile, session, isGuest = false }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [savedMealIds, setSavedMealIds] = useState([]);
-  const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
+  
   const [saveMessage, setSaveMessage] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
@@ -443,9 +443,10 @@ export default function RecipeView({ profile, session, isGuest = false }) {
   const [recipeForm, setRecipeForm] = useState(() => ({ ...EMPTY_RECIPE_FORM }));
   const [recipeFormLoading, setRecipeFormLoading] = useState(false);
   const [recipeFormMessage, setRecipeFormMessage] = useState("");
-  const [showMineOnly, setShowMineOnly] = useState(false);
+  
   const [recipeRefreshToken, setRecipeRefreshToken] = useState(0);
-  const [activeTab, setActiveTab] = useState("recipes");
+  const [activeTab, setActiveTab] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
   const userId = session?.user?.id;
 
   useEffect(() => {
@@ -461,25 +462,23 @@ export default function RecipeView({ profile, session, isGuest = false }) {
           .order("health_score", { ascending: false, nullsFirst: false })
           .limit(60);
 
-        if (!showMineOnly) {
-          query = query.lte("prep_time_minutes", maxTime);
-        }
+        query = query.lte("prep_time_minutes", maxTime);
 
-        if (!showMineOnly && hasBudgetLimit(profile)) {
+        if (hasBudgetLimit(profile)) {
           query = query.lte("cost_estimate", Number(profile.budget));
         }
 
         const dietaryFilters = profile?.dietary_requirements || [];
 
-        if (!showMineOnly && dietaryFilters.length > 0) {
+        if (dietaryFilters.length > 0) {
           query = query.contains("dietary_tags", dietaryFilters);
         }
 
-        if (!showMineOnly && cookingSkill !== "any") {
+        if (cookingSkill !== "any") {
           query = query.eq("cooking_skill", cookingSkill);
         }
 
-        if (!showMineOnly && selectedAppliances.length > 0) {
+        if (selectedAppliances.length > 0) {
           query = query.contains("appliances_needed", selectedAppliances);
         }
 
@@ -508,7 +507,7 @@ export default function RecipeView({ profile, session, isGuest = false }) {
     return () => {
       isCurrent = false;
     };
-  }, [profile, maxTime, cookingSkill, selectedAppliances, userId, showMineOnly, recipeRefreshToken]);
+  }, [profile, maxTime, cookingSkill, selectedAppliances, userId, recipeRefreshToken]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -551,13 +550,18 @@ export default function RecipeView({ profile, session, isGuest = false }) {
     };
   }, [isGuest, session]);
 
+  const allRecipes = useMemo(
+    () => recipes,
+    [recipes]
+  );
+
   const visibleRecipes = useMemo(
     () => recipes.filter((recipe) => {
-      if (showFavouritesOnly && !savedMealIds.includes(recipe.id)) return false;
-      if (showMineOnly && recipe.ownerId !== userId) return false;
+      if (activeTab === "favourites" && !savedMealIds.includes(recipe.id)) return false;
+      if (activeTab === "mine" && recipe.ownerId !== userId) return false;
       return true;
     }),
-    [recipes, savedMealIds, showFavouritesOnly, showMineOnly, userId]
+    [recipes, savedMealIds, activeTab, userId]
   );
 
   const mealCombinations = useMemo(
@@ -941,7 +945,7 @@ export default function RecipeView({ profile, session, isGuest = false }) {
           )}
         </div>
 
-        <div className="max-w-md space-y-2">
+        <div className="max-w-x1 space-y-2">
           <div className="flex justify-between items-center text-sm">
             <label htmlFor="time-range" className="font-semibold text-gray-700">Available Cooking Time:</label>
             <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full text-xs">
@@ -962,113 +966,118 @@ export default function RecipeView({ profile, session, isGuest = false }) {
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
           />
           <div className="flex justify-between text-xs text-gray-400 font-medium px-0.5">
-            <span>10 min express</span>
-            <span>2 hours max</span>
+            <span>10 min</span>
+            <span>2 hours</span>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="skill-filter" className="block text-sm font-semibold text-gray-700">
-              Cooking skill
-            </label>
-            <select
-              id="skill-filter"
-              value={cookingSkill}
-              onChange={(e) => setCookingSkill(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
-            >
-              {COOKING_SKILL_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <span className="block text-sm font-semibold text-gray-700">
-              Appliances needed
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {APPLIANCE_OPTIONS.map((option) => {
-                const isSelected = selectedAppliances.includes(option.id);
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedAppliances((current) =>
-                        isSelected
-                          ? current.filter((appliance) => appliance !== option.id)
-                          : [...current, option.id]
-                      )
-                    }
-                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition focus:outline-none ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => setShowFavouritesOnly((current) => !current)}
-            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
-              showFavouritesOnly
-                ? "border-rose-300 bg-rose-50 text-rose-700"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
+            onClick={() => setShowFilters((current) => !current)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition focus:outline-none w-fit"
           >
-            {showFavouritesOnly ? "Showing favourites" : `Show favourites (${savedMealIds.length})`}
-          </button>
-          {!isGuest && userId && (
-            <button
-              type="button"
-              onClick={() => setShowMineOnly((current) => !current)}
-              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
-                showMineOnly
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-              }`}
+            <span>{showFilters ? "Hide filters" : "More filters"}</span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
-              {showMineOnly ? "Showing my recipes" : "Show my recipes"}
-            </button>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {cookingSkill !== "any" && (
+            <span className="bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-2 py-1 rounded-full">
+              {cookingSkill}
+            </span>
           )}
+          {selectedAppliances.map((appliance) => (
+            <span key={appliance} className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">
+              {appliance}
+            </span>
+          ))}
         </div>
 
-        {profile && (
-          <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-gray-400 font-medium">Applied limits:</span>
-            {hasBudgetLimit(profile) && (
-              <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
-                Max Budget: £{profile.budget}
-              </span>
+        {showFilters && (
+          <div className="space-y-4 pt-2 border-t border-gray-100">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="skill-filter" className="block text-sm font-semibold text-gray-700">
+                  Cooking skill
+                </label>
+                <select
+                  id="skill-filter"
+                  value={cookingSkill}
+                  onChange={(e) => setCookingSkill(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none"
+                >
+                  {COOKING_SKILL_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <span className="block text-sm font-semibold text-gray-700">
+                  Appliances you have
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {APPLIANCE_OPTIONS.map((option) => {
+                    const isSelected = selectedAppliances.includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedAppliances((current) =>
+                            isSelected
+                              ? current.filter((appliance) => appliance !== option.id)
+                              : [...current, option.id]
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-2 text-sm font-medium transition focus:outline-none ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            
+
+            {profile && (
+              <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-gray-400 font-medium">Applied limits:</span>
+                {hasBudgetLimit(profile) && (
+                  <span className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
+                    Max Budget: £{profile.budget}
+                  </span>
+                )}
+                {profile.dietary_requirements?.map((req) => (
+                  <span key={req} className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium px-2 py-1 rounded">
+                    {req}
+                  </span>
+                ))}
+                {cookingSkill !== "any" && (
+                  <span className="bg-blue-50 text-blue-700 border border-blue-100 font-medium px-2 py-1 rounded">
+                    Skill: {cookingSkill}
+                  </span>
+                )}
+                {selectedAppliances.map((appliance) => (
+                  <span key={appliance} className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
+                    {appliance}
+                  </span>
+                ))}
+              </div>
             )}
-            {profile.dietary_requirements?.map((req) => (
-              <span key={req} className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium px-2 py-1 rounded">
-                {req}
-              </span>
-            ))}
-            {cookingSkill !== "any" && (
-              <span className="bg-blue-50 text-blue-700 border border-blue-100 font-medium px-2 py-1 rounded">
-                Skill: {cookingSkill}
-              </span>
-            )}
-            {selectedAppliances.map((appliance) => (
-              <span key={appliance} className="bg-gray-100 text-gray-700 font-medium px-2 py-1 rounded">
-                {appliance}
-              </span>
-            ))}
           </div>
         )}
       </div>
@@ -1107,24 +1116,13 @@ export default function RecipeView({ profile, session, isGuest = false }) {
             </p>
             <p className="text-xs text-gray-400 mt-1">Try extending your slider range to reveal more variations.</p>
           </div>
-        ) : visibleRecipes.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
-            <p className="text-gray-400 font-medium">
-              {showMineOnly
-                ? "You have not added any recipes yet."
-                : "No favourites match your current filters."}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {showMineOnly
-                ? "Add a recipe to build your personal collection."
-                : "Save a recipe as a favourite or turn off the favourites filter."}
-            </p>
-          </div>
         ) : (
           <div className="space-y-4">
             <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 w-fit">
               {[
-                { id: "recipes", label: `All recipes (${visibleRecipes.length})` },
+                { id: "all", label: `All recipes (${allRecipes.length})` },
+                { id: "favourites", label: `Favourites (${savedMealIds.length})` },
+                ...(!isGuest && userId ? [{ id: "mine", label: "My recipes" }] : []),
                 { id: "combos", label: "Meal combos" },
               ].map((tab) => (
                 <button
@@ -1148,190 +1146,192 @@ export default function RecipeView({ profile, session, isGuest = false }) {
               </p>
             )}
 
-            {activeTab === "combos" && (
-              <section className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Balanced meal combinations</h3>
-                    <p className="text-sm text-gray-500">
-                      Multiple meals grouped by health score, variety, time, cost, and your active filters.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRecommendationOffset((current) => current + MEALS_PER_COMBINATION)}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none"
-                  >
-                    Try another set
-                  </button>
-                </div>
-
-                <div className="flex gap-4 overflow-x-auto pb-3">
-                  {mealCombinations.map((combination) => (
-                    <article
-                      key={combination.id}
-                      className="min-w-[300px] max-w-sm flex-1 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <div>
-                          <h4 className="font-bold text-gray-900">Meal combo</h4>
-                          <p className="text-xs text-gray-500">
-                            Balance score {combination.balanceScore}
-                          </p>
-                        </div>
-                        {combination.totalCost > 0 && (
-                          <span className="rounded bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700">
-                            £{combination.totalCost.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        {combination.meals.map((meal) => (
-                          <div key={meal.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                trackStep("opened_recipe_from_meal_combo");
-                                const metrics = completeJourney(meal.id);
-                                persistJourney(metrics, supabase, session?.user?.id);
-                                setSelectedRecipeId(meal.id);
-                              }}
-                              className="text-left text-sm font-bold text-gray-900 hover:text-emerald-700"
-                            >
-                              {meal.title}
-                            </button>
-                            <div className="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
-                              <span className="rounded bg-white px-1.5 py-0.5">
-                                {formatMinutes(meal.readyInMinutes)}
-                              </span>
-                              {meal.cookingSkill && (
-                                <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-500">
-                                  {meal.cookingSkill}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-600">
-                        <span>Avg health: {combination.averageHealth?.toFixed(0) || "N/A"}</span>
-                        <span>Variety: {combination.tagCount} tags</span>
-                        <span>Calories: {combination.averageCalories?.toFixed(0) || "N/A"}</span>
-                        <span>Protein: {combination.averageProtein?.toFixed(0) || "N/A"}g</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "recipes" && (
-              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {visibleRecipes.map((recipe) => (
-                  <article
-                    key={recipe.id}
-                    className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm transition duration-200 flex flex-col"
-                  >
-                    {recipe.image && (
-                      <img
-                        src={recipe.image}
-                        alt={recipe.title}
-                        className="h-36 w-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-
-                    <div className="p-5 space-y-3 flex-1">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex flex-wrap gap-1">
-                          <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded">
-                            {formatMinutes(recipe.readyInMinutes)}
-                          </span>
-                          {recipe.ownerId === userId && (
-                            <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2 py-1 rounded">
-                              Mine
-                            </span>
-                          )}
-                        </div>
-                        {recipe.estimatedCost && (
-                          <span className="text-xs text-gray-500 font-semibold mt-1">
-                            £{recipe.estimatedCost.toFixed(2)} / serving
-                          </span>
-                        )}
+            {visibleRecipes.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200 px-4">
+                <p className="text-gray-400 font-medium">
+                  {activeTab === "mine"
+                    ? "You have not added any recipes yet."
+                    : activeTab === "favourites"
+                    ? "No favourites yet."
+                    : "No recipes match your current filters."}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {activeTab === "mine"
+                    ? "Add a recipe to build your personal collection."
+                    : activeTab === "favourites"
+                    ? "Favourite a recipe and it will appear here."
+                    : "Try extending your slider range or adjusting filters."}
+                </p>
+              </div>
+            ) : (
+              <>
+                {activeTab === "combos" && (
+                  <section className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Balanced meal combinations</h3>
+                        <p className="text-sm text-gray-500">
+                          Multiple meals grouped by health score, variety, time, cost, and your active filters.
+                        </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          trackStep("opened_recipe_from_grid");
-                          const metrics = completeJourney(recipe.id);
-                          persistJourney(metrics, supabase, session?.user?.id);
-                          setSelectedRecipeId(recipe.id);
-                        }}
-                        className="text-left font-bold text-gray-900 text-lg leading-tight hover:text-emerald-700 focus:outline-none"
+                        onClick={() => setRecommendationOffset((current) => current + MEALS_PER_COMBINATION)}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none"
                       >
-                        {recipe.title}
+                        Try another set
                       </button>
-                      <p className="text-sm text-gray-500 line-clamp-3">{recipe.description}</p>
                     </div>
-
-                    {(recipe.cookingSkill || recipe.appliancesNeeded.length > 0 || recipe.dietaryTags.length > 0) && (
-                      <div className="px-5 pb-4 pt-2 flex flex-wrap gap-1 border-t border-gray-50">
-                        {recipe.cookingSkill && (
-                          <span className="bg-blue-50 text-blue-500 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-                            {recipe.cookingSkill}
-                          </span>
-                        )}
-                        {recipe.appliancesNeeded.map((appliance) => (
-                          <span key={appliance} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-                            {appliance}
-                          </span>
-                        ))}
-                        {recipe.dietaryTags.map((tag) => (
-                          <span key={tag} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="px-5 pb-5 pt-1">
-                      <div className="grid grid-cols-1 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleFavourite(recipe.id)}
-                          className={`w-full rounded-lg px-3 py-2 text-xs font-bold transition ${
-                            savedMealIds.includes(recipe.id)
-                              ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
+                    <div className="flex gap-4 overflow-x-auto pb-3">
+                      {mealCombinations.map((combination) => (
+                        <article
+                          key={combination.id}
+                          className="min-w-[300px] max-w-sm flex-1 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                         >
-                          {savedMealIds.includes(recipe.id) ? "Favourited" : "Favourite"}
-                        </button>
-                        {recipe.ownerId === userId && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openEditRecipeEditor(recipe)}
-                              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRecipeDelete(recipe)}
-                              className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
-                            >
-                              Delete
-                            </button>
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                              <h4 className="font-bold text-gray-900">Meal combo</h4>
+                              <p className="text-xs text-gray-500">Balance score {combination.balanceScore}</p>
+                            </div>
+                            {combination.totalCost > 0 && (
+                              <span className="rounded bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700">
+                                £{combination.totalCost.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            {combination.meals.map((meal) => (
+                              <div key={meal.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    trackStep("opened_recipe_from_meal_combo");
+                                    const metrics = completeJourney(meal.id);
+                                    persistJourney(metrics, supabase, session?.user?.id);
+                                    setSelectedRecipeId(meal.id);
+                                  }}
+                                  className="text-left text-sm font-bold text-gray-900 hover:text-emerald-700"
+                                >
+                                  {meal.title}
+                                </button>
+                                <div className="mt-2 flex flex-wrap gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                                  <span className="rounded bg-white px-1.5 py-0.5">{formatMinutes(meal.readyInMinutes)}</span>
+                                  {meal.cookingSkill && (
+                                    <span className="rounded bg-blue-50 px-1.5 py-0.5 text-blue-500">{meal.cookingSkill}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                            <span>Avg health: {combination.averageHealth?.toFixed(0) || "N/A"}</span>
+                            <span>Variety: {combination.tagCount} tags</span>
+                            <span>Calories: {combination.averageCalories?.toFixed(0) || "N/A"}</span>
+                            <span>Protein: {combination.averageProtein?.toFixed(0) || "N/A"}g</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {activeTab !== "combos" && (
+                  <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visibleRecipes.map((recipe) => (
+                      <article
+                        key={recipe.id}
+                        className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm transition duration-200 flex flex-col"
+                      >
+                        {recipe.image && (
+                          <img src={recipe.image} alt={recipe.title} className="h-36 w-full object-cover" loading="lazy" />
+                        )}
+                        <div className="p-5 space-y-3 flex-1">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex flex-wrap gap-1">
+                              <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-1 rounded">
+                                {formatMinutes(recipe.readyInMinutes)}
+                              </span>
+                              {recipe.ownerId === userId && (
+                                <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2 py-1 rounded">Mine</span>
+                              )}
+                            </div>
+                            {recipe.estimatedCost && (
+                              <span className="text-xs text-gray-500 font-semibold mt-1">
+                                £{recipe.estimatedCost.toFixed(2)} / serving
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              trackStep("opened_recipe_from_grid");
+                              const metrics = completeJourney(recipe.id);
+                              persistJourney(metrics, supabase, session?.user?.id);
+                              setSelectedRecipeId(recipe.id);
+                            }}
+                            className="text-left font-bold text-gray-900 text-lg leading-tight hover:text-emerald-700 focus:outline-none"
+                          >
+                            {recipe.title}
+                          </button>
+                          <p className="text-sm text-gray-500 line-clamp-3">{recipe.description}</p>
+                        </div>
+                        {(recipe.cookingSkill || recipe.appliancesNeeded.length > 0 || recipe.dietaryTags.length > 0) && (
+                          <div className="px-5 pb-4 pt-2 flex flex-wrap gap-1 border-t border-gray-50">
+                            {recipe.cookingSkill && (
+                              <span className="bg-blue-50 text-blue-500 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
+                                {recipe.cookingSkill}
+                              </span>
+                            )}
+                            {recipe.appliancesNeeded.map((appliance) => (
+                              <span key={appliance} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
+                                {appliance}
+                              </span>
+                            ))}
+                            {recipe.dietaryTags.map((tag) => (
+                              <span key={tag} className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
                           </div>
                         )}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </section>
+                        <div className="px-5 pb-5 pt-1">
+                          <div className="grid grid-cols-1 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleFavourite(recipe.id)}
+                              className={`w-full rounded-lg px-3 py-2 text-xs font-bold transition ${
+                                savedMealIds.includes(recipe.id)
+                                  ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                            >
+                              {savedMealIds.includes(recipe.id) ? "Favourited" : "Favourite"}
+                            </button>
+                            {recipe.ownerId === userId && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditRecipeEditor(recipe)}
+                                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRecipeDelete(recipe)}
+                                  className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                )}
+              </>
             )}
           </div>
         )}
