@@ -2,19 +2,29 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 import AuthView from "./components/AuthView";
 import ProfileView from "./components/ProfileView";
-import RecipeView from "./components/RecipeView";
+import TodayView from "./components/TodayView";
+import DiscoverView from "./components/DiscoverView";
+import PlanView from "./components/PlanView";
 
-// Metric tracking functionality
 import { startJourney, trackStep } from "./analytics";
 
 const DEFAULT_BUDGET = 10;
 
+
+const NAV_ITEMS = [
+  { id: "today",    label: "Today"    },
+  { id: "discover", label: "Discover" },
+  { id: "plan",     label: "Plan"     },
+];
+
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState("recipes");
+  const [session, setSession]       = useState(null);
+  const [isGuest, setIsGuest]       = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [currentView, setCurrentView] = useState("today");
   const [profileData, setProfileData] = useState(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [recipeBackView, setRecipeBackView] = useState("discover");
   const [guestProfile, setGuestProfile] = useState({
     full_name: "Guest",
     username: "guest",
@@ -27,6 +37,12 @@ export default function App() {
     goal: "maintenance",
   });
 
+  const openRecipe = (recipeId, backView = "discover") => {
+    setSelectedRecipeId(recipeId);
+    setRecipeBackView(backView);
+    setCurrentView("recipe");
+  };
+
   const fetchUserProfile = useCallback(async (userId) => {
     if (!userId) return;
     try {
@@ -37,46 +53,36 @@ export default function App() {
         )
         .eq("id", userId)
         .single();
-
       if (error) throw error;
-      if (data) {
-        setProfileData({
-          ...data,
-          budget: data.budget ?? DEFAULT_BUDGET,
-        });
-      }
+      if (data) setProfileData({ ...data, budget: data.budget ?? DEFAULT_BUDGET });
     } catch (err) {
-      console.error("Error fetching sync preferences:", err instanceof Error ? err.message : err);
+      console.error("Error fetching profile:", err instanceof Error ? err.message : err);
     }
   }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Get initial session cleanly
     supabase.auth.getSession().then(({ data }) => {
-      if (isMounted) {
-        setSession(data.session);
-        if (data.session?.user?.id) {
-          setIsGuest(false);
-          setCurrentView("recipes");
-          fetchUserProfile(data.session.user.id);
-        }
-        setLoading(false);
+      if (!isMounted) return;
+      setSession(data.session);
+      if (data.session?.user?.id) {
+        setIsGuest(false);
+        setCurrentView("today");
+        fetchUserProfile(data.session.user.id);
       }
+      setLoading(false);
     });
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, newSession) => {
-      if (isMounted) {
-        setSession(newSession);
-        if (newSession?.user?.id) {
-          setIsGuest(false);
-          setCurrentView("recipes");
-          fetchUserProfile(newSession.user.id);
-        } else {
-          setProfileData(null);
-        }
+      if (!isMounted) return;
+      setSession(newSession);
+      if (newSession?.user?.id) {
+        setIsGuest(false);
+        setCurrentView("today");
+        fetchUserProfile(newSession.user.id);
+      } else {
+        setProfileData(null);
       }
     });
 
@@ -89,7 +95,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500 animate-pulse">Loading...</p>
+        <p className="animate-pulse text-gray-500">Loading...</p>
       </div>
     );
   }
@@ -101,91 +107,135 @@ export default function App() {
           onContinueAsGuest={() => {
             startJourney();
             setIsGuest(true);
-            setCurrentView("recipes");
+            setCurrentView("today");
           }}
         />
       </main>
     );
   }
 
+  const profile = isGuest ? guestProfile : profileData;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col text-gray-900">
-      <nav className="w-full bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-        <span className="text-xl font-bold text-emerald-600 tracking-tight">NutriSupport</span>
-        
-        <div className="flex items-center space-x-2">
-          {(session || isGuest) && (
+    <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
+      <nav className="sticky top-0 z-10 w-full border-b border-gray-200 bg-white px-6 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <span className="text-xl font-bold tracking-tight text-emerald-600">
+            NutriSupport
+          </span>
+
+          <div className="flex items-center gap-1">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  trackStep(`nav_${item.id}`);
+                  setSelectedRecipeId(null);
+                  setCurrentView(item.id);
+                }}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  currentView === item.id
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+
             <button
+              type="button"
               onClick={() => setCurrentView("profile")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                currentView === "profile" 
-                  ? "bg-emerald-50 text-emerald-700" 
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                currentView === "profile"
+                  ? "bg-emerald-50 text-emerald-700"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              Profile Settings
+              Profile
             </button>
-          )}
-          <button
-            onClick={() => {
-              trackStep("opened_recipes");
-              setCurrentView("recipes");
-            }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              currentView === "recipes" 
-                ? "bg-emerald-50 text-emerald-700" 
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Meal Planner
-          </button>
-          {session ? (
-            <button
-              onClick={() => {
-                supabase.auth.signOut();
-                setSession(null);
-              }}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
-            >
-              Sign Out
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setIsGuest(false);
-                setCurrentView("profile");
-              }}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition"
-            >
-              Sign In
-            </button>
-          )}
+
+            {session ? (
+              <button
+                type="button"
+                onClick={() => supabase.auth.signOut()}
+                className="ml-2 rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+              >
+                Sign out
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGuest(false);
+                  setCurrentView("profile");
+                }}
+                className="ml-2 rounded-lg px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
         </div>
       </nav>
 
-      <main className="flex-1 w-full max-w-6xl mx-auto p-6">
-        {(session || isGuest) && currentView === "profile" ? (
-          <div className="flex w-full justify-center items-start pt-8"> 
+      <main className="mx-auto w-full max-w-6xl flex-1 p-6">
+        {currentView === "today" && (
+          <TodayView
+            profile={profile}
+            session={session}
+            isGuest={isGuest}
+          />
+        )}
+
+        {currentView === "discover" && (
+          <DiscoverView
+            profile={profile}
+            session={session}
+            isGuest={isGuest}
+          />
+        )}
+
+        {currentView === "plan" && (
+          <PlanView
+            profile={profile}
+            session={session}
+            isGuest={isGuest}
+            onOpenRecipe={(recipeId) => openRecipe(recipeId, "plan")}
+          />
+        )}
+
+        {currentView === "recipe" && (
+          <DiscoverView
+            profile={profile}
+            session={session}
+            isGuest={isGuest}
+            externalRecipeId={selectedRecipeId}
+            backLabel={recipeBackView === "plan" ? "Back to plan" : "Back to recipes"}
+            onExternalBack={() => {
+              setSelectedRecipeId(null);
+              setCurrentView(recipeBackView);
+            }}
+          />
+        )}
+
+        {currentView === "profile" && (
+          <div className="flex w-full items-start justify-center pt-8">
             <div className="w-full max-w-xl">
-              <ProfileView 
-                session={session} 
+              <ProfileView
+                session={session}
                 initialProfile={isGuest ? guestProfile : null}
                 onGuestProfileUpdate={setGuestProfile}
                 onSignOut={() => {
                   setSession(null);
                   setIsGuest(false);
-                  setCurrentView("profile");
-                }} 
-                onProfileUpdate={() => fetchUserProfile(session?.user?.id)} 
+                  setCurrentView("today");
+                }}
+                onProfileUpdate={() => fetchUserProfile(session?.user?.id)}
               />
             </div>
           </div>
-        ) : (
-          <RecipeView
-            profile={isGuest ? guestProfile : profileData}
-            session={session}
-            isGuest={isGuest}
-          />
         )}
       </main>
     </div>
