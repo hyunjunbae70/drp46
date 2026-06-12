@@ -10,6 +10,7 @@ import { startJourney, trackStep } from "./analytics";
 
 const DEFAULT_BUDGET = 10;
 
+
 const NAV_ITEMS = [
   { id: "today",    label: "Today"    },
   { id: "discover", label: "Discover" },
@@ -22,6 +23,8 @@ export default function App() {
   const [loading, setLoading]       = useState(true);
   const [currentView, setCurrentView] = useState("today");
   const [profileData, setProfileData] = useState(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [recipeBackView, setRecipeBackView] = useState("discover");
   const [guestProfile, setGuestProfile] = useState({
     full_name: "Guest",
     username: "guest",
@@ -33,6 +36,12 @@ export default function App() {
     activity_level: "moderate",
     goal: "maintenance",
   });
+
+  const openRecipe = (recipeId, backView = "discover") => {
+    setSelectedRecipeId(recipeId);
+    setRecipeBackView(backView);
+    setCurrentView("recipe");
+  };
 
   const fetchUserProfile = useCallback(async (userId) => {
     if (!userId) return;
@@ -122,6 +131,7 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   trackStep(`nav_${item.id}`);
+                  setSelectedRecipeId(null);
                   setCurrentView(item.id);
                 }}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
@@ -184,10 +194,6 @@ export default function App() {
             profile={profile}
             session={session}
             isGuest={isGuest}
-            onOpenRecipe={(recipeId) => {
-              trackStep("nav_discover_recipe");
-              setCurrentView("discover");
-            }}
           />
         )}
 
@@ -196,7 +202,21 @@ export default function App() {
             profile={profile}
             session={session}
             isGuest={isGuest}
-            onOpenRecipe={() => setCurrentView("discover")}
+            onOpenRecipe={(recipeId) => openRecipe(recipeId, "plan")}
+          />
+        )}
+
+        {currentView === "recipe" && (
+          <DiscoverView
+            profile={profile}
+            session={session}
+            isGuest={isGuest}
+            externalRecipeId={selectedRecipeId}
+            backLabel={recipeBackView === "plan" ? "Back to plan" : "Back to recipes"}
+            onExternalBack={() => {
+              setSelectedRecipeId(null);
+              setCurrentView(recipeBackView);
+            }}
           />
         )}
 

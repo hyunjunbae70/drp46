@@ -210,7 +210,18 @@ function RecipeEditor({ formData, isEditing, loading, message, onCancel, onChang
 
 // ─── Recipe detail view ────────────────────────────────────────────────────────
 
-function RecipeDetail({ recipeId, userId, savedMealIds, isGuest, session, onBack, onToggleFavourite, onEdit, onDelete }) {
+function RecipeDetail({
+  recipeId,
+  userId,
+  savedMealIds,
+  isGuest,
+  session,
+  onBack,
+  backLabel = "Back to recipes",
+  onToggleFavourite,
+  onEdit,
+  onDelete,
+}) {
   const [recipe, setRecipe]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
@@ -240,7 +251,7 @@ function RecipeDetail({ recipeId, userId, savedMealIds, isGuest, session, onBack
     <div className="space-y-6">
       <button type="button" onClick={onBack}
         className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">
-        ← Back to recipes
+        ← {backLabel}
       </button>
 
       <article className="space-y-6">
@@ -328,7 +339,8 @@ function RecipeDetail({ recipeId, userId, savedMealIds, isGuest, session, onBack
 
 // ─── Main DiscoverView ─────────────────────────────────────────────────────────
 
-export default function DiscoverView({ profile, session, isGuest }) {
+export default function DiscoverView({ profile, session, isGuest, externalRecipeId = null,
+  onExternalBack, backLabel = "Back to recipes" }) {
   const userId = session?.user?.id;
 
   const [maxTime, setMaxTime]                       = useState(45);
@@ -346,6 +358,7 @@ export default function DiscoverView({ profile, session, isGuest }) {
 
   const [activeTab, setActiveTab]               = useState("all");
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const activeRecipeId = externalRecipeId || selectedRecipeId;
 
   const [showEditor, setShowEditor]               = useState(false);
   const [editingRecipe, setEditingRecipe]         = useState(null);
@@ -461,18 +474,25 @@ export default function DiscoverView({ profile, session, isGuest }) {
   };
 
   // ── detail view ──
-  if (selectedRecipeId) {
+  if (activeRecipeId) {
     return (
       <RecipeDetail
-        recipeId={selectedRecipeId}
+        recipeId={activeRecipeId}
         userId={userId}
         savedMealIds={savedMealIds}
         isGuest={isGuest}
         session={session}
-        onBack={() => setSelectedRecipeId(null)}
+        onBack={() => {
+          if (onExternalBack) {
+            onExternalBack();
+          } else {
+            setSelectedRecipeId(null);
+          }
+        }}
         onToggleFavourite={toggleFavourite}
         onEdit={(recipe) => openEditor(recipe)}
         onDelete={async (recipe) => { await handleDelete(recipe); }}
+        backLabel = {backLabel}
       />
     );
   }
@@ -517,15 +537,37 @@ export default function DiscoverView({ profile, session, isGuest }) {
 
         {/* Filters */}
         <div className="space-y-3">
-          <div className="max-w-xl space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <label className="font-semibold text-gray-700">Cooking time</label>
-              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">{maxTime} min or less</span>
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="space-y-4">
+              <label
+                htmlFor="today-time"
+                className="block text-center text-sm font-semibold text-gray-700"
+              >
+                Cooking time filter
+              </label>
+
+              <div className="flex justify-center">
+                <span className="rounded-full bg-emerald-100 px-4 py-2 text-base font-bold text-emerald-800">
+                  {maxTime} min or less
+                </span>
+              </div>
+
+              <input
+                id="today-time"
+                type="range"
+                min="10"
+                max="120"
+                step="5"
+                value={maxTime}
+                onChange={(e) => setMaxTime(Number(e.target.value))}
+                className="h-3 w-full cursor-pointer appearance-none rounded-full bg-gray-300 accent-emerald-600"
+              />
+
+              <div className="flex justify-between text-xs font-medium text-gray-400">
+                <span>10 min</span>
+                <span>2 hours</span>
+              </div>
             </div>
-            <input type="range" min="10" max="120" step="5" value={maxTime}
-              onChange={(e) => setMaxTime(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-emerald-600" />
-            <div className="flex justify-between text-xs font-medium text-gray-400"><span>10 min</span><span>2 hours</span></div>
           </div>
 
           <button type="button" onClick={() => setShowFilters((v) => !v)}
@@ -592,46 +634,121 @@ export default function DiscoverView({ profile, session, isGuest }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {visibleRecipes.map((recipe) => (
-                <article key={recipe.id} className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-                  {recipe.image && <img src={recipe.image} alt={recipe.title} className="h-36 w-full object-cover" loading="lazy" />}
-                  <div className="flex flex-1 flex-col p-5 space-y-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-700">{formatMinutes(recipe.readyInMinutes)}</span>
-                      {recipe.estimatedCost && <span className="text-xs font-semibold text-gray-500">{formatCost(recipe.estimatedCost)} / serving</span>}
-                    </div>
-                    <button type="button"
-                      onClick={() => {
-                        trackStep("opened_recipe_from_grid");
-                        const metrics = completeJourney(recipe.id);
-                        persistJourney(metrics, supabase, session?.user?.id);
-                        setSelectedRecipeId(recipe.id);
-                      }}
-                      className="text-left text-lg font-bold leading-tight text-gray-900 hover:text-emerald-700">
-                      {recipe.title}
-                    </button>
-                    <p className="line-clamp-2 text-sm text-gray-500">{recipe.description}</p>
-                    <div className="mt-auto flex flex-wrap gap-1 pt-2">
-                      {recipe.cookingSkill && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-600">{recipe.cookingSkill}</span>}
-                      {recipe.dietaryTags.map((tag) => <span key={tag} className="rounded bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">{tag}</span>)}
-                    </div>
-                  </div>
-                  <div className="px-5 pb-5 pt-1 space-y-2">
-                    <button type="button" onClick={() => toggleFavourite(recipe.id)}
-                      className={`w-full rounded-lg px-3 py-2 text-xs font-bold transition ${savedMealIds.includes(recipe.id) ? "bg-rose-50 text-rose-700 hover:bg-rose-100" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-                      {savedMealIds.includes(recipe.id) ? "Favourited" : "Favourite"}
-                    </button>
-                    {recipe.ownerId === userId && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => openEditor(recipe)}
-                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Edit</button>
-                        <button type="button" onClick={() => handleDelete(recipe)}
-                          className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100">Delete</button>
-                      </div>
+              {visibleRecipes.map((recipe) => {
+                const openRecipe = () => {
+                  trackStep("opened_recipe_from_grid");
+                  const metrics = completeJourney(recipe.id);
+                  persistJourney(metrics, supabase, session?.user?.id);
+                  setSelectedRecipeId(recipe.id);
+                };
+
+                return (
+                  <article
+                    key={recipe.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={openRecipe}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openRecipe();
+                      }
+                    }}
+                    className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+                  >
+                    {recipe.image && (
+                      <img
+                        src={recipe.image}
+                        alt={recipe.title}
+                        className="h-36 w-full object-cover"
+                        loading="lazy"
+                      />
                     )}
-                  </div>
-                </article>
-              ))}
+
+                    <div className="flex flex-1 flex-col p-5 space-y-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-700">
+                          {formatMinutes(recipe.readyInMinutes)}
+                        </span>
+
+                        {recipe.estimatedCost && (
+                          <span className="text-xs font-semibold text-gray-500">
+                            {formatCost(recipe.estimatedCost)} / serving
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-left text-lg font-bold leading-tight text-gray-900">
+                        {recipe.title}
+                      </p>
+
+                      <p className="line-clamp-2 text-sm text-gray-500">
+                        {recipe.description}
+                      </p>
+
+                      <div className="mt-auto flex flex-wrap gap-1 pt-2">
+                        {recipe.cookingSkill && (
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-600">
+                            {recipe.cookingSkill}
+                          </span>
+                        )}
+
+                        {recipe.dietaryTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-400"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="px-5 pb-5 pt-1 space-y-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleFavourite(recipe.id);
+                        }}
+                        className={`w-full rounded-lg px-3 py-2 text-xs font-bold transition ${
+                          savedMealIds.includes(recipe.id)
+                            ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {savedMealIds.includes(recipe.id) ? "Favourited" : "Favourite"}
+                      </button>
+
+                      {recipe.ownerId === userId && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditor(recipe);
+                            }}
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDelete(recipe);
+                            }}
+                            className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

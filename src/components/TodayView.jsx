@@ -117,119 +117,196 @@ function MacroStrip({ title, values, highlight }) {
 
 // ─── Recipe detail sheet ─────────────────────────────────────────────────────
 
-function RecipeDetailSheet({ recipe, onClose, onLog, logging }) {
+function RecipeDetailView({ recipe, onBack, onLog, logging }) {
   const steps = recipe.instructionSteps?.length > 0
     ? recipe.instructionSteps.map((s) => s.step || s)
     : [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl shadow-xl">
-        {recipe.image && (
-          <img src={recipe.image} alt={recipe.title} className="h-52 w-full object-cover rounded-t-2xl sm:rounded-t-2xl" />
+    <div className="space-y-6">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+      >
+        ← Back to recipes
+      </button>
+
+      <article className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1">
+              {recipe.dietaryTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-700"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              {recipe.title}
+            </h1>
+
+            {recipe.description && (
+              <p className="text-base leading-7 text-gray-600">
+                {recipe.description}
+              </p>
+            )}
+          </div>
+
+          {recipe.image && (
+            <img
+              src={recipe.image}
+              alt={recipe.title}
+              className="aspect-[4/3] w-full rounded-xl object-cover shadow-sm"
+            />
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              label: "Ready in",
+              value: formatMinutes(recipe.readyInMinutes),
+            },
+            {
+              label: "Servings",
+              value: recipe.servings || "Flexible",
+            },
+            {
+              label: "Est. cost",
+              value: formatCost(recipe.estimatedCost) || "Not listed",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-xl border border-gray-200 bg-white p-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                {item.label}
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900">
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {(recipe.calories ||
+          recipe.proteinGrams ||
+          recipe.carbsGrams ||
+          recipe.fatGrams) && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Calories
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900">
+                {formatMacro(recipe.calories, "kcal")}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Protein
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900">
+                {formatMacro(recipe.proteinGrams, "g")}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Carbs
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900">
+                {formatMacro(recipe.carbsGrams, "g")}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Fat
+              </p>
+              <p className="mt-1 text-lg font-bold text-gray-900">
+                {formatMacro(recipe.fatGrams, "g")}
+              </p>
+            </div>
+          </div>
         )}
 
-        <div className="p-6 space-y-5">
-          <div className="flex items-start justify-between gap-4">
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {recipe.dietaryTags.map((tag) => (
-                  <span key={tag} className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">{recipe.title}</h2>
-              {recipe.description && (
-                <p className="mt-1 text-sm text-gray-500">{recipe.description}</p>
-              )}
+              <p className="text-sm font-bold text-emerald-900">
+                Ready to add this to today’s log?
+              </p>
+              <p className="text-sm text-emerald-700">
+                This will count the recipe’s calories and macros toward your daily totals.
+              </p>
             </div>
+
             <button
               type="button"
-              onClick={onClose}
-              className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+              onClick={() => onLog(recipe)}
+              disabled={logging}
+              className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              Close
+              {logging ? "Logging…" : "Log this meal"}
             </button>
           </div>
-
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs text-gray-400 mb-0.5">Ready in</p>
-              <p className="font-bold text-gray-900">{formatMinutes(recipe.readyInMinutes)}</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs text-gray-400 mb-0.5">Servings</p>
-              <p className="font-bold text-gray-900">{recipe.servings || "—"}</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs text-gray-400 mb-0.5">Est. cost</p>
-              <p className="font-bold text-gray-900">{formatCost(recipe.estimatedCost) || "—"}</p>
-            </div>
-          </div>
-
-          {(recipe.calories || recipe.proteinGrams || recipe.carbsGrams || recipe.fatGrams) && (
-            <div className="grid grid-cols-4 gap-2 text-center text-xs">
-              <span className="rounded-lg bg-gray-50 px-2 py-2 font-semibold text-gray-700">
-                {formatMacro(recipe.calories, "kcal")}
-              </span>
-              <span className="rounded-lg bg-blue-50 px-2 py-2 font-semibold text-blue-700">
-                {formatMacro(recipe.proteinGrams, "g")} P
-              </span>
-              <span className="rounded-lg bg-amber-50 px-2 py-2 font-semibold text-amber-700">
-                {formatMacro(recipe.carbsGrams, "g")} C
-              </span>
-              <span className="rounded-lg bg-rose-50 px-2 py-2 font-semibold text-rose-700">
-                {formatMacro(recipe.fatGrams, "g")} F
-              </span>
-            </div>
-          )}
-
-          {recipe.extendedIngredients?.length > 0 && (
-            <section>
-              <h3 className="mb-2 text-base font-bold text-gray-900">Ingredients</h3>
-              <ul className="grid gap-1.5 sm:grid-cols-2">
-                {recipe.extendedIngredients.map((ing, i) => (
-                  <li
-                    key={i}
-                    className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700"
-                  >
-                    {ing.original || ing}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {steps.length > 0 && (
-            <section>
-              <h3 className="mb-2 text-base font-bold text-gray-900">Instructions</h3>
-              <ol className="space-y-2">
-                {steps.map((step, i) => (
-                  <li key={i} className="flex gap-3 rounded-lg border border-gray-100 bg-white p-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm leading-6 text-gray-700">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-
-          <button
-            type="button"
-            onClick={() => onLog(recipe)}
-            disabled={logging}
-            className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
-          >
-            {logging ? "Logging…" : "Log this meal"}
-          </button>
         </div>
-      </div>
+
+        {recipe.extendedIngredients?.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-xl font-bold text-gray-900">
+              Ingredients
+            </h2>
+
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {recipe.extendedIngredients.map((ing, i) => (
+                <li
+                  key={i}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700"
+                >
+                  {ing.original || ing}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section>
+          <h2 className="mb-3 text-xl font-bold text-gray-900">
+            Instructions
+          </h2>
+
+          {steps.length > 0 ? (
+            <ol className="space-y-2">
+              {steps.map((step, i) => (
+                <li
+                  key={i}
+                  className="flex gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm leading-6 text-gray-700">
+                    {step}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="rounded-xl border border-dashed border-gray-200 bg-white p-5 text-sm text-gray-500">
+              No step-by-step instructions yet.
+            </p>
+          )}
+        </section>
+      </article>
     </div>
   );
 }
@@ -462,6 +539,19 @@ export default function TodayView({ profile, session, isGuest }) {
 
   const currentSuggestion = suggestions[suggestionIndex] || null;
 
+  if (sheetRecipe) {
+    return (
+      <div className="space-y-6">
+        <RecipeDetailView
+          recipe={sheetRecipe}
+          onBack={() => setSheetRecipe(null)}
+          onLog={handleLogFromSheet}
+          logging={loggingFromSheet}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
 
@@ -508,22 +598,36 @@ export default function TodayView({ profile, session, isGuest }) {
         </div>
 
         {/* Time slider */}
-        <div className="max-w-xl space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <label htmlFor="today-time" className="font-semibold text-gray-700">Cooking time</label>
-            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-              {maxTime} min or less
-            </span>
-          </div>
-          <input
-            id="today-time"
-            type="range" min="10" max="120" step="5"
-            value={maxTime}
-            onChange={(e) => setMaxTime(Number(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-emerald-600"
-          />
-          <div className="flex justify-between text-xs font-medium text-gray-400">
-            <span>10 min</span><span>2 hours</span>
+        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="space-y-4">
+            <label
+              htmlFor="today-time"
+              className="block text-center text-sm font-semibold text-gray-700"
+            >
+              Available Cooking time
+            </label>
+
+            <div className="flex justify-center">
+              <span className="rounded-full bg-emerald-100 px-4 py-2 text-base font-bold text-emerald-800">
+                {maxTime} min or less
+              </span>
+            </div>
+
+            <input
+              id="today-time"
+              type="range"
+              min="10"
+              max="120"
+              step="5"
+              value={maxTime}
+              onChange={(e) => setMaxTime(Number(e.target.value))}
+              className="h-3 w-full cursor-pointer appearance-none rounded-full bg-gray-300 accent-emerald-600"
+            />
+
+            <div className="flex justify-between text-xs font-medium text-gray-400">
+              <span>10 min</span>
+              <span>2 hours</span>
+            </div>
           </div>
         </div>
 
@@ -754,15 +858,7 @@ export default function TodayView({ profile, session, isGuest }) {
         )}
       </section>
 
-      {/* ── Recipe detail sheet ── */}
-      {sheetRecipe && (
-        <RecipeDetailSheet
-          recipe={sheetRecipe}
-          onClose={() => setSheetRecipe(null)}
-          onLog={handleLogFromSheet}
-          logging={loggingFromSheet}
-        />
-      )}
+      
     </div>
   );
 }
