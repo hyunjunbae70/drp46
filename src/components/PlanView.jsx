@@ -203,9 +203,9 @@ export default function PlanView({ profile, session, isGuest, onOpenRecipe }) {
   );
 
   const [loading, setLoading] = useState(false);
-  const [loadingMeals, setLoadingMeals] = useState(false);
+  const [loadingMeals] = useState(false);
   const [error, setError] = useState("");
-  const [mealLogError, setMealLogError] = useState("");
+  const [mealLogError] = useState("");
 
   const profileIsComplete = isNutritionProfileComplete(profile);
 
