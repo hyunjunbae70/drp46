@@ -225,19 +225,18 @@ export default function PlanView({ profile, session, isGuest, onOpenRecipe }) {
   );
 
   useEffect(() => {
-    if (isGuest) {
-      setTodaysMeals(getTodaysGuestMealLogs());
-      return undefined;
-    }
-
-    if (!userId) return undefined;
-
     let live = true;
-    const todayRange = getTodayRange();
 
     async function loadTodaysMeals() {
-      setLoadingMeals(true);
-      setMealLogError("");
+      if (isGuest) {
+        const guestMeals = getTodaysGuestMealLogs();
+        if (live) setTodaysMeals(guestMeals);
+        return;
+      }
+
+      if (!userId) return;
+
+      const todayRange = getTodayRange();
 
       const { data, error: mealError } = await supabase
         .from("meal_logs")
@@ -249,14 +248,9 @@ export default function PlanView({ profile, session, isGuest, onOpenRecipe }) {
 
       if (!live) return;
 
-      if (mealError) {
-        setMealLogError(mealError.message);
-        setTodaysMeals([]);
-      } else {
+      if (!mealError) {
         setTodaysMeals(data || []);
       }
-
-      setLoadingMeals(false);
     }
 
     loadTodaysMeals();

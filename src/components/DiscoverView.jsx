@@ -214,8 +214,6 @@ function RecipeDetail({
   recipeId,
   userId,
   savedMealIds,
-  isGuest,
-  session,
   onBack,
   backLabel = "Back to recipes",
   onToggleFavourite,
@@ -223,20 +221,37 @@ function RecipeDetail({
   onDelete,
 }) {
   const [recipe, setRecipe]   = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(recipeId));
   const [error, setError]     = useState("");
 
   useEffect(() => {
     let live = true;
-    setLoading(true); setError(""); setRecipe(null);
-    supabase.from("recipes").select("*").eq("id", recipeId).single()
-      .then(({ data, error: e }) => {
-        if (!live) return;
-        if (e) setError(e.message || "Could not load recipe.");
-        else setRecipe(normalizeRecipe(data));
-        setLoading(false);
-      });
-    return () => { live = false; };
+
+    async function loadRecipe() {
+      const { data, error: e } = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("id", recipeId)
+        .single();
+
+      if (!live) return;
+
+      if (e) {
+        setError(e.message || "Could not load recipe.");
+        setRecipe(null);
+      } else {
+        setRecipe(normalizeRecipe(data));
+        setError("");
+      }
+
+      setLoading(false);
+    }
+
+    loadRecipe();
+
+    return () => {
+      live = false;
+    };
   }, [recipeId]);
 
   if (loading) return <div className="flex justify-center py-16"><p className="animate-pulse text-sm text-gray-400">Loading…</p></div>;
@@ -396,12 +411,37 @@ export default function DiscoverView({ profile, session, isGuest, externalRecipe
 
   // fetch favourites
   useEffect(() => {
-    if (isGuest) { setSavedMealIds(readStoredIds(GUEST_FAVORITES_KEY)); return; }
-    if (!userId) { setSavedMealIds([]); return; }
-    supabase.from("user_favourite_recipes").select("recipe_id").eq("user_id", userId)
-      .then(({ data, error: e }) => {
-        if (!e) setSavedMealIds((data || []).map((r) => r.recipe_id));
-      });
+    let live = true;
+
+    async function loadFavourites() {
+      if (isGuest) {
+        const storedIds = readStoredIds(GUEST_FAVORITES_KEY);
+        if (live) setSavedMealIds(storedIds);
+        return;
+      }
+
+      if (!userId) {
+        if (live) setSavedMealIds([]);
+        return;
+      }
+
+      const { data, error: e } = await supabase
+        .from("user_favourite_recipes")
+        .select("recipe_id")
+        .eq("user_id", userId);
+
+      if (!live) return;
+
+      if (!e) {
+        setSavedMealIds((data || []).map((r) => r.recipe_id));
+      }
+    }
+
+    loadFavourites();
+
+    return () => {
+      live = false;
+    };
   }, [isGuest, userId]);
 
   const visibleRecipes = useMemo(() => recipes.filter((r) => {
@@ -480,8 +520,6 @@ export default function DiscoverView({ profile, session, isGuest, externalRecipe
         recipeId={activeRecipeId}
         userId={userId}
         savedMealIds={savedMealIds}
-        isGuest={isGuest}
-        session={session}
         onBack={() => {
           if (onExternalBack) {
             onExternalBack();

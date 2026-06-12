@@ -333,7 +333,7 @@ export default function TodayView({ profile, session, isGuest }) {
 
   // meal log
   const [todaysMeals, setTodaysMeals]   = useState(() => isGuest ? getTodaysGuestMealLogs() : []);
-  const [loadingMeals, setLoadingMeals] = useState(false);
+  const [loadingMeals, setLoadingMeals] = useState(!isGuest && Boolean(userId));
   const [removingId, setRemovingId]     = useState(null);
 
   // manual log
@@ -389,23 +389,35 @@ export default function TodayView({ profile, session, isGuest }) {
 
   // fetch today's meal log
   useEffect(() => {
-    if (isGuest || !userId) return;
     let live = true;
-    const { start, end } = getTodayRange();
-    setLoadingMeals(true);
-    supabase
-      .from("meal_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .gte("eaten_at", start)
-      .lt("eaten_at", end)
-      .order("eaten_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!live) return;
-        if (!error) setTodaysMeals(data || []);
-        setLoadingMeals(false);
-      });
-    return () => { live = false; };
+
+    async function loadTodaysMeals() {
+      if (isGuest || !userId) return;
+
+      const { start, end } = getTodayRange();
+
+      const { data, error } = await supabase
+        .from("meal_logs")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("eaten_at", start)
+        .lt("eaten_at", end)
+        .order("eaten_at", { ascending: false });
+
+      if (!live) return;
+
+      if (!error) {
+        setTodaysMeals(data || []);
+      }
+
+      setLoadingMeals(false);
+    }
+
+    loadTodaysMeals();
+
+    return () => {
+      live = false;
+    };
   }, [isGuest, userId]);
 
   // ── helpers ──
